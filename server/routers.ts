@@ -2,20 +2,9 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { z } from "zod";
-import { 
-  createSignupRequest, 
-  verifySignupCode,
-  getAllFeaturedContent,
-  createFeaturedContent,
-  updateFeaturedContent,
-  deleteFeaturedContent,
-  getAllActiveEvents,
-  createEvent,
-  updateEvent,
-  deleteEvent
-} from "./db";
 import { TRPCError } from "@trpc/server";
+import { z } from "zod";
+import * as db from "./db";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -44,7 +33,7 @@ export const appRouter = router({
         const code = Math.floor(100000 + Math.random() * 900000).toString();
 
         try {
-          await createSignupRequest(input.name, input.email, code);
+          await db.createSignupRequest(input.name, input.email, code);
 
           // TODO: Enviar email com o código
           // Por enquanto, vamos apenas retornar o código (em produção, isso seria enviado por email)
@@ -72,7 +61,7 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input }) => {
-        const result = await verifySignupCode(input.email, input.code);
+        const result = await db.verifySignupCode(input.email, input.code);
 
         if (!result.success) {
           throw new TRPCError({
@@ -92,7 +81,7 @@ export const appRouter = router({
 
   content: router({
     list: publicProcedure.query(async () => {
-      return await getAllFeaturedContent();
+      return await db.getAllFeaturedContent();
     }),
 
     create: protectedProcedure
@@ -109,7 +98,7 @@ export const appRouter = router({
         if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem criar conteúdo" });
         }
-        await createFeaturedContent(input);
+        await db.createFeaturedContent(input);
         return { success: true };
       }),
 
@@ -129,7 +118,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN" });
         }
         const { id, ...data } = input;
-        await updateFeaturedContent(id, data);
+        await db.updateFeaturedContent(id, data);
         return { success: true };
       }),
 
@@ -139,14 +128,14 @@ export const appRouter = router({
         if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
-        await deleteFeaturedContent(input.id);
+        await db.deleteFeaturedContent(input.id);
         return { success: true };
       }),
   }),
 
   events: router({
     list: publicProcedure.query(async () => {
-      return await getAllActiveEvents();
+      return await db.getAllActiveEvents();
     }),
 
     create: protectedProcedure
@@ -164,7 +153,7 @@ export const appRouter = router({
         if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem criar eventos" });
         }
-        await createEvent(input);
+        await db.createEvent(input);
         return { success: true };
       }),
 
@@ -185,7 +174,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN" });
         }
         const { id, ...data } = input;
-        await updateEvent(id, data);
+        await db.updateEvent(id, data);
         return { success: true };
       }),
 
@@ -195,17 +184,115 @@ export const appRouter = router({
         if (ctx.user.role !== "admin") {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
-        await deleteEvent(input.id);
+        await db.deleteEvent(input.id);
         return { success: true };
       }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  // Admin routes
+  admin: router({
+    // Conteúdos
+    listContent: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+      }
+      return db.getAllFeaturedContent();
+    }),
+
+    createContent: protectedProcedure
+      .input(z.object({
+        category: z.string(),
+        title: z.string().min(1),
+        description: z.string(),
+        link: z.string().url(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+        }
+        await db.createFeaturedContent(input);
+        return { success: true };
+      }),
+
+    updateContent: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        category: z.string().optional(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional(),
+        link: z.string().url().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+        }
+        const { id, ...updates } = input;
+        await db.updateFeaturedContent(id, updates);
+        return { success: true };
+      }),
+
+    deleteContent: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+        }
+        await db.deleteFeaturedContent(input.id);
+        return { success: true };
+      }),
+
+    // Eventos
+    listEvents: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+      }
+      return db.getAllActiveEvents();
+    }),
+
+    createEvent: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        description: z.string(),
+        eventDate: z.date(),
+        location: z.string(),
+        link: z.string().url().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+        }
+        await db.createEvent(input);
+        return { success: true };
+      }),
+
+    updateEvent: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional(),
+        eventDate: z.date().optional(),
+        location: z.string().optional(),
+        link: z.string().url().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+        }
+        const { id, ...updates } = input;
+        await db.updateEvent(id, updates);
+        return { success: true };
+      }),
+
+    deleteEvent: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+        }
+        await db.deleteEvent(input.id);
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

@@ -1,7 +1,8 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { notifyOwner } from './_core/notification';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -106,6 +107,37 @@ export async function createSignupRequest(name: string, email: string, code: str
     verified: 0,
     expiresAt,
   });
+
+  // Enviar notificação com código de verificação
+  try {
+    await sendVerificationEmail(email, name, code);
+  } catch (error) {
+    console.error('❌ Erro ao enviar email de verificação:', error);
+    // Não falhar o cadastro se o email não for enviado
+  }
+}
+
+/**
+ * Envia notificação com código de verificação
+ * Em produção, integre com SendGrid, Mailgun, AWS SES, etc.
+ */
+export async function sendVerificationEmail(email: string, name: string, code: string) {
+  const message = `
+🆕 Novo cadastro na comunidade PapayaNews!
+
+👤 Nome: ${name}
+📧 Email: ${email}
+🔐 Código de verificação: ${code}
+
+⏰ Válido por 15 minutos
+  `.trim();
+
+  await notifyOwner({
+    title: 'Novo Cadastro - PapayaNews',
+    content: message,
+  });
+
+  console.log(`📧 Notificação de cadastro enviada`);
 }
 
 export async function verifySignupCode(email: string, code: string) {

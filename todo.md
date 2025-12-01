@@ -62,3 +62,12 @@
 - [x] Remover referência "Login com Manus OAuth" da landing page
 - [x] Verificar e remover outras referências à Manus no site
 - [x] Testar todas as funcionalidades após correções
+
+## Próximos Passos - Implementação Avançada
+- [x] Atualizar URLs dos conteúdos com links reais do YouTube e Substack
+- [x] Configurar sistema de envio de emails para códigos de verificação
+- [x] Criar página de administração (/admin)
+- [x] Implementar interface para gerenciar conteúdos destacados
+- [x] Implementar interface para gerenciar eventos
+- [x] Adicionar proteção de acesso apenas para administradores
+- [x] Testar todas as funcionalidades do painel admin
