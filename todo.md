@@ -56,3 +56,9 @@
 - [x] Integrar autenticação com Google OAuth
 - [x] Criar botão de login com Google na landing page
 - [x] Testar todas as funcionalidades
+
+## Correções e Ajustes Finais
+- [x] Investigar e corrigir erro reportado pelo usuário
+- [x] Remover referência "Login com Manus OAuth" da landing page
+- [x] Verificar e remover outras referências à Manus no site
+- [x] Testar todas as funcionalidades após correções
