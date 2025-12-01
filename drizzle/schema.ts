@@ -170,4 +170,18 @@ export const newsletterSubscribers = mysqlTable("newsletter_subscribers", {
 export type InsertNewsletter = typeof newsletters.$inferInsert;
 export type InsertNewsletterSubscriber = typeof newsletterSubscribers.$inferInsert;
 
+// Notifications system
+export const notifications = mysqlTable("notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  type: mysqlEnum("type", ["badge", "comment_reply", "event_reminder", "general"]).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  read: int("read").default(0).notNull(), // 0 = não lida, 1 = lida
+  link: varchar("link", { length: 500 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type InsertNotification = typeof notifications.$inferInsert;
+
 // TODO: Add your tables here

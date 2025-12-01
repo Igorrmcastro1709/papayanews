@@ -260,6 +260,31 @@ export const appRouter = router({
     }),
   }),
 
+  // Notifications routes
+  notifications: router({
+    list: protectedProcedure
+      .input(z.object({ unreadOnly: z.boolean().optional() }).optional())
+      .query(async ({ input, ctx }) => {
+        return db.getUserNotifications(ctx.user.id, input?.unreadOnly);
+      }),
+
+    unreadCount: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUnreadNotificationsCount(ctx.user.id);
+    }),
+
+    markAsRead: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.markNotificationAsRead(input.id);
+        return { success: true };
+      }),
+
+    markAllAsRead: protectedProcedure.mutation(async ({ ctx }) => {
+      await db.markAllNotificationsAsRead(ctx.user.id);
+      return { success: true };
+    }),
+  }),
+
   // Gamification routes
   gamification: router({
     getProfile: protectedProcedure.query(async ({ ctx }) => {

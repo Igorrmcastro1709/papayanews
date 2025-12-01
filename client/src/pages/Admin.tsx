@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Calendar, Link as LinkIcon } from "lucide-react";
+import NewsletterEditor from "@/components/NewsletterEditor";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -34,6 +35,19 @@ export default function Admin() {
 
   const [editingContent, setEditingContent] = useState<number | null>(null);
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
+  const [newsletterForm, setNewsletterForm] = useState<{
+    editing: boolean;
+    id: number | null;
+    title: string;
+    subject: string;
+    content: string;
+  }>({
+    editing: false,
+    id: null,
+    title: "",
+    subject: "",
+    content: "",
+  });
 
   // Queries
   const { data: contents, refetch: refetchContents } = trpc.admin.listContent.useQuery(undefined, {
@@ -47,6 +61,10 @@ export default function Admin() {
   const { data: analytics, isLoading: loadingAnalytics } = trpc.analytics.getStats.useQuery(undefined, {
     enabled: user?.role === "admin" && activeTab === "analytics",
     refetchInterval: 30000, // Atualizar a cada 30 segundos
+  });
+
+  const { data: newsletters, refetch: refetchNewsletters } = trpc.newsletter.list.useQuery(undefined, {
+    enabled: user?.role === "admin" && activeTab === "newsletter",
   });
 
   // Mutations - Conteúdos
@@ -114,6 +132,39 @@ export default function Admin() {
     },
     onError: (error) => {
       toast.error(error.message || "Erro ao remover evento");
+    },
+  });
+
+  // Mutations - Newsletters
+  const createNewsletterMutation = trpc.newsletter.create.useMutation({
+    onSuccess: () => {
+      toast.success("Newsletter criada com sucesso!");
+      refetchNewsletters();
+      setNewsletterForm({ editing: false, id: null, title: "", subject: "", content: "" });
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erro ao criar newsletter");
+    },
+  });
+
+  const updateNewsletterMutation = trpc.newsletter.update.useMutation({
+    onSuccess: () => {
+      toast.success("Newsletter atualizada com sucesso!");
+      refetchNewsletters();
+      setNewsletterForm({ editing: false, id: null, title: "", subject: "", content: "" });
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erro ao atualizar newsletter");
+    },
+  });
+
+  const deleteNewsletterMutation = trpc.newsletter.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Newsletter removida com sucesso!");
+      refetchNewsletters();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erro ao remover newsletter");
     },
   });
 
@@ -692,33 +743,109 @@ export default function Admin() {
         {/* Newsletter Tab */}
         {activeTab === "newsletter" && (
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gerenciar Newsletters</CardTitle>
-                <CardDescription>
-                  Sistema de newsletter integrado - em breve!
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">📧</div>
-                  <h3 className="text-xl font-semibold mb-2">Newsletter em Desenvolvimento</h3>
-                  <p className="text-gray-600 mb-4">
-                    O sistema de newsletter está pronto no backend! Em breve você poderá:
-                  </p>
-                  <ul className="text-left max-w-md mx-auto space-y-2 text-gray-700">
-                    <li>• Criar e editar newsletters com editor visual</li>
-                    <li>• Agendar envios automáticos</li>
-                    <li>• Gerenciar lista de inscritos</li>
-                    <li>• Ver estatísticas de abertura e cliques</li>
-                    <li>• Templates personalizados PapayaNews</li>
-                  </ul>
-                  <p className="text-sm text-gray-500 mt-6">
-                    Por enquanto, as rotas da API já estão funcionando e prontas para uso!
-                  </p>
+            {!newsletterForm.editing ? (
+              <>
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Newsletters</CardTitle>
+                        <CardDescription>
+                          {newsletters?.length || 0} newsletters criadas
+                        </CardDescription>
+                      </div>
+                      <Button onClick={() => setNewsletterForm({ editing: true, id: null, title: "", subject: "", content: "" })}>
+                        Nova Newsletter
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {newsletters && newsletters.length > 0 ? (
+                      <div className="space-y-4">
+                        {newsletters.map((newsletter: any) => (
+                          <div key={newsletter.id} className="p-4 border rounded-lg hover:bg-gray-50">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="font-semibold">{newsletter.title}</h3>
+                                <p className="text-sm text-gray-600 mt-1">{newsletter.subject}</p>
+                                <div className="flex items-center gap-4 mt-2">
+                                  <span className="text-xs text-gray-500">
+                                    Criada em {new Date(newsletter.createdAt).toLocaleDateString("pt-BR")}
+                                  </span>
+                                  <span className={`text-xs px-2 py-1 rounded-full ${
+                                    newsletter.status === "sent" ? "bg-green-100 text-green-700" :
+                                    newsletter.status === "scheduled" ? "bg-blue-100 text-blue-700" :
+                                    "bg-gray-100 text-gray-700"
+                                  }`}>
+                                    {newsletter.status === "sent" ? "Enviada" :
+                                     newsletter.status === "scheduled" ? "Agendada" : "Rascunho"}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setNewsletterForm({
+                                    editing: true,
+                                    id: newsletter.id,
+                                    title: newsletter.title,
+                                    subject: newsletter.subject,
+                                    content: newsletter.content,
+                                  })}
+                                >
+                                  Editar
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => deleteNewsletterMutation.mutate({ id: newsletter.id })}
+                                >
+                                  Excluir
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 text-gray-500">
+                        <div className="text-6xl mb-4">📧</div>
+                        <p>Nenhuma newsletter criada ainda</p>
+                        <p className="text-sm mt-2">Clique em "Nova Newsletter" para começar</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold">
+                    {newsletterForm.id ? "Editar Newsletter" : "Nova Newsletter"}
+                  </h2>
+                  <Button
+                    variant="outline"
+                    onClick={() => setNewsletterForm({ editing: false, id: null, title: "", subject: "", content: "" })}
+                  >
+                    Voltar
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
+                <NewsletterEditor
+                  initialTitle={newsletterForm.title}
+                  initialSubject={newsletterForm.subject}
+                  initialContent={newsletterForm.content}
+                  onSave={(data) => {
+                    if (newsletterForm.id) {
+                      updateNewsletterMutation.mutate({ id: newsletterForm.id, ...data });
+                    } else {
+                      createNewsletterMutation.mutate(data);
+                    }
+                  }}
+                  loading={createNewsletterMutation.isPending || updateNewsletterMutation.isPending}
+                />
+              </>
+            )}
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 import { eq, and, gte, count, sql, desc, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, InsertNotification } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
 import { sendVerificationEmail as sendVerificationEmailResend } from './_core/email';
@@ -491,6 +491,15 @@ export async function checkAndAwardBadges(userId: number) {
         userId,
         badgeId: badge.id,
       });
+      
+      // Criar notificação de novo badge
+      await createNotification({
+        userId,
+        type: 'badge',
+        title: '🏆 Novo Badge Conquistado!',
+        message: `Parabéns! Você conquistou o badge "${badge.name}": ${badge.description}`,
+        link: '/profile',
+      });
     }
   }
 }
@@ -626,6 +635,58 @@ export async function unsubscribeFromNewsletter(userId: number) {
   await db.update(newsletterSubscribers)
     .set({ subscribed: 0, unsubscribedAt: new Date() })
     .where(eq(newsletterSubscribers.userId, userId));
+}
+
+// Notifications queries
+export async function createNotification(notification: InsertNotification) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(notifications).values(notification);
+  return result;
+}
+
+export async function getUserNotifications(userId: number, unreadOnly = false) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [eq(notifications.userId, userId)];
+  if (unreadOnly) {
+    conditions.push(eq(notifications.read, 0));
+  }
+
+  return db
+    .select()
+    .from(notifications)
+    .where(and(...conditions))
+    .orderBy(desc(notifications.createdAt))
+    .limit(50);
+}
+
+export async function markNotificationAsRead(id: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(notifications).set({ read: 1 }).where(eq(notifications.id, id));
+}
+
+export async function markAllNotificationsAsRead(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(notifications).set({ read: 1 }).where(eq(notifications.userId, userId));
+}
+
+export async function getUnreadNotificationsCount(userId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const result = await db
+    .select({ count: count() })
+    .from(notifications)
+    .where(and(eq(notifications.userId, userId), eq(notifications.read, 0)));
+
+  return result[0]?.count || 0;
 }
 
 // TODO: add feature queries here as your schema grows.

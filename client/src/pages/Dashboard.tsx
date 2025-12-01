@@ -1,4 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import NotificationBell from "@/components/NotificationBell";
+import SocialShare from "@/components/SocialShare";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -122,6 +124,7 @@ export default function Dashboard() {
             
             {/* Desktop User Menu */}
             <div className="hidden md:flex items-center gap-4">
+              <NotificationBell />
               <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
                 <User className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium text-foreground">
@@ -292,8 +295,7 @@ export default function Dashboard() {
                 return (
                   <Card 
                     key={content.id} 
-                    className="group hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer"
-                    onClick={() => window.open(content.link, '_blank')}
+                    className="group hover:shadow-xl hover:border-primary/50 transition-all duration-300"
                   >
                     <CardHeader className="space-y-3">
                       <div className="flex items-start justify-between gap-3">
@@ -308,12 +310,25 @@ export default function Dashboard() {
                             {content.title}
                           </CardTitle>
                         </div>
-                        <ExternalLink className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
                       </div>
                       <CardDescription className="text-sm line-clamp-2">
                         {content.description}
                       </CardDescription>
                     </CardHeader>
+                    <CardContent className="flex gap-2">
+                      <Button 
+                        onClick={() => window.open(content.link, '_blank')}
+                        className="flex-1 bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700"
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Acessar
+                      </Button>
+                      <SocialShare
+                        title={content.title}
+                        description={content.description || ""}
+                        url={content.link}
+                      />
+                    </CardContent>
                   </Card>
                 );
               })}
