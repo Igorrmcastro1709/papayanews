@@ -14,7 +14,7 @@ import { toast } from "sonner";
 export default function Admin() {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState<"content" | "events" | "analytics">("content");
+  const [activeTab, setActiveTab] = useState<"content" | "events" | "analytics" | "newsletter">("content");
 
   // Estados para formulários
   const [contentForm, setContentForm] = useState({
@@ -236,12 +236,18 @@ export default function Admin() {
           >
             Eventos
           </Button>
-          <Button
-            variant={activeTab === "analytics" ? "default" : "outline"}
-            onClick={() => setActiveTab("analytics")}
-          >
-            Analytics
-          </Button>
+            <Button
+              variant={activeTab === "analytics" ? "default" : "outline"}
+              onClick={() => setActiveTab("analytics")}
+            >
+              Analytics
+            </Button>
+            <Button
+              variant={activeTab === "newsletter" ? "default" : "outline"}
+              onClick={() => setActiveTab("newsletter")}
+            >
+              Newsletter
+            </Button>
         </div>
 
         {/* Conteúdos Tab */}
@@ -680,6 +686,39 @@ export default function Admin() {
                 </CardContent>
               </Card>
             )}
+          </div>
+        )}
+
+        {/* Newsletter Tab */}
+        {activeTab === "newsletter" && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Gerenciar Newsletters</CardTitle>
+                <CardDescription>
+                  Sistema de newsletter integrado - em breve!
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">📧</div>
+                  <h3 className="text-xl font-semibold mb-2">Newsletter em Desenvolvimento</h3>
+                  <p className="text-gray-600 mb-4">
+                    O sistema de newsletter está pronto no backend! Em breve você poderá:
+                  </p>
+                  <ul className="text-left max-w-md mx-auto space-y-2 text-gray-700">
+                    <li>• Criar e editar newsletters com editor visual</li>
+                    <li>• Agendar envios automáticos</li>
+                    <li>• Gerenciar lista de inscritos</li>
+                    <li>• Ver estatísticas de abertura e cliques</li>
+                    <li>• Templates personalizados PapayaNews</li>
+                  </ul>
+                  <p className="text-sm text-gray-500 mt-6">
+                    Por enquanto, as rotas da API já estão funcionando e prontas para uso!
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>

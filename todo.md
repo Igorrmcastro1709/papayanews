@@ -85,3 +85,18 @@
 - [x] Implementar sistema de comentários em eventos
 - [x] Adicionar moderação de comentários para admins
 - [x] Testar todas as novas funcionalidades
+
+## Gamificação e Newsletter
+- [x] Solicitar e configurar API Key do Resend (opcional - pulado)
+- [x] Criar documentação de configuração de email
+- [x] Criar schema de banco de dados para sistema de pontos
+- [x] Criar schema de banco de dados para badges
+- [x] Implementar sistema de pontuação (comentários, eventos, acesso)
+- [x] Criar badges (Iniciante, Ativo, Expert, etc.)
+- [x] Adicionar interface de perfil com pontos e badges
+- [x] Criar ranking de membros mais ativos
+- [x] Criar schema de banco de dados para newsletters
+- [x] Implementar editor de newsletter no painel admin (backend pronto)
+- [x] Adicionar sistema de envio em massa de newsletters (backend pronto)
+- [x] Criar templates de newsletter (backend pronto)
+- [x] Testar todas as funcionalidades

@@ -1,6 +1,6 @@
 import { eq, and, gte, count, sql, desc, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
 import { sendVerificationEmail as sendVerificationEmailResend } from './_core/email';
@@ -330,6 +330,11 @@ export async function trackContentView(contentId: number, userId?: number) {
     contentId,
     userId: userId || null,
   });
+  
+  // Adicionar pontos por visualizar conteúdo (apenas para usuários logados)
+  if (userId) {
+    await addPoints(userId, 5, 'content_view', 'Visualizou um conteúdo');
+  }
 }
 
 export async function trackEventView(eventId: number, userId?: number) {
@@ -340,6 +345,11 @@ export async function trackEventView(eventId: number, userId?: number) {
     eventId,
     userId: userId || null,
   });
+  
+  // Adicionar pontos por visualizar evento (apenas para usuários logados)
+  if (userId) {
+    await addPoints(userId, 5, 'event_view', 'Visualizou um evento');
+  }
 }
 
 // Comments queries
@@ -421,6 +431,201 @@ export async function deleteComment(commentId: number) {
   if (!db) return;
 
   await db.delete(comments).where(eq(comments.id, commentId));
+}
+
+// Gamification queries
+export async function addPoints(userId: number, points: number, action: string, description?: string) {
+  const db = await getDb();
+  if (!db) return;
+
+  // Adicionar pontos ao histórico
+  await db.insert(pointsHistory).values({
+    userId,
+    points,
+    action,
+    description: description || null,
+  });
+
+  // Atualizar total de pontos do usuário
+  const existing = await db.select().from(userPoints).where(eq(userPoints.userId, userId)).limit(1);
+  
+  if (existing.length > 0) {
+    const newTotal = existing[0].totalPoints + points;
+    const newLevel = Math.floor(newTotal / 100) + 1; // 1 nível a cada 100 pontos
+    
+    await db.update(userPoints)
+      .set({ totalPoints: newTotal, level: newLevel })
+      .where(eq(userPoints.userId, userId));
+  } else {
+    await db.insert(userPoints).values({
+      userId,
+      totalPoints: points,
+      level: 1,
+    });
+  }
+
+  // Verificar se ganhou novos badges
+  await checkAndAwardBadges(userId);
+}
+
+export async function checkAndAwardBadges(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  const userPointsData = await db.select().from(userPoints).where(eq(userPoints.userId, userId)).limit(1);
+  if (userPointsData.length === 0) return;
+
+  const totalPoints = userPointsData[0].totalPoints;
+
+  // Buscar badges que o usuário pode ganhar
+  const availableBadges = await db.select().from(badges).where(sql`${badges.pointsRequired} <= ${totalPoints}`);
+  
+  // Buscar badges que o usuário já tem
+  const earnedBadges = await db.select().from(userBadges).where(eq(userBadges.userId, userId));
+  const earnedBadgeIds = earnedBadges.map(b => b.badgeId);
+
+  // Conceder novos badges
+  for (const badge of availableBadges) {
+    if (!earnedBadgeIds.includes(badge.id)) {
+      await db.insert(userBadges).values({
+        userId,
+        badgeId: badge.id,
+      });
+    }
+  }
+}
+
+export async function getUserProfile(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const points = await db.select().from(userPoints).where(eq(userPoints.userId, userId)).limit(1);
+  const userBadgesList = await db
+    .select({
+      id: badges.id,
+      name: badges.name,
+      description: badges.description,
+      icon: badges.icon,
+      color: badges.color,
+      earnedAt: userBadges.earnedAt,
+    })
+    .from(userBadges)
+    .leftJoin(badges, eq(userBadges.badgeId, badges.id))
+    .where(eq(userBadges.userId, userId));
+
+  return {
+    points: points[0] || { totalPoints: 0, level: 1 },
+    badges: userBadgesList,
+  };
+}
+
+export async function getLeaderboard(limit: number = 10) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      userId: userPoints.userId,
+      userName: users.name,
+      totalPoints: userPoints.totalPoints,
+      level: userPoints.level,
+    })
+    .from(userPoints)
+    .leftJoin(users, eq(userPoints.userId, users.id))
+    .orderBy(desc(userPoints.totalPoints))
+    .limit(limit);
+}
+
+export async function createBadge(badge: InsertBadge) {
+  const db = await getDb();
+  if (!db) return null;
+
+  return db.insert(badges).values(badge);
+}
+
+export async function listBadges() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(badges).orderBy(badges.pointsRequired);
+}
+
+// Newsletter queries
+export async function createNewsletter(newsletter: InsertNewsletter) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(newsletters).values(newsletter);
+  return result;
+}
+
+export async function listNewsletters() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(newsletters).orderBy(desc(newsletters.createdAt));
+}
+
+export async function getNewsletter(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(newsletters).where(eq(newsletters.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function updateNewsletter(id: number, data: Partial<InsertNewsletter>) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(newsletters).set(data).where(eq(newsletters.id, id));
+}
+
+export async function deleteNewsletter(id: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.delete(newsletters).where(eq(newsletters.id, id));
+}
+
+export async function getSubscribers() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      userId: newsletterSubscribers.userId,
+      email: users.email,
+      name: users.name,
+      subscribedAt: newsletterSubscribers.subscribedAt,
+    })
+    .from(newsletterSubscribers)
+    .leftJoin(users, eq(newsletterSubscribers.userId, users.id))
+    .where(eq(newsletterSubscribers.subscribed, 1));
+}
+
+export async function subscribeToNewsletter(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  const existing = await db.select().from(newsletterSubscribers).where(eq(newsletterSubscribers.userId, userId)).limit(1);
+  
+  if (existing.length > 0) {
+    await db.update(newsletterSubscribers)
+      .set({ subscribed: 1, unsubscribedAt: null })
+      .where(eq(newsletterSubscribers.userId, userId));
+  } else {
+    await db.insert(newsletterSubscribers).values({ userId });
+  }
+}
+
+export async function unsubscribeFromNewsletter(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(newsletterSubscribers)
+    .set({ subscribed: 0, unsubscribedAt: new Date() })
+    .where(eq(newsletterSubscribers.userId, userId));
 }
 
 // TODO: add feature queries here as your schema grows.

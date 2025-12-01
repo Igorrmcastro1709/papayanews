@@ -189,6 +189,92 @@ export const appRouter = router({
       }),
   }),
 
+  // Newsletter routes
+  newsletter: router({  
+    list: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+      }
+      return db.listNewsletters();
+    }),
+
+    create: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        subject: z.string().min(1),
+        content: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+        }
+        await db.createNewsletter({
+          ...input,
+          createdBy: ctx.user.id,
+        });
+        return { success: true };
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        subject: z.string().optional(),
+        content: z.string().optional(),
+        status: z.enum(['draft', 'scheduled', 'sent']).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+        }
+        const { id, ...data } = input;
+        await db.updateNewsletter(id, data);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+        }
+        await db.deleteNewsletter(input.id);
+        return { success: true };
+      }),
+
+    getSubscribers: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+      }
+      return db.getSubscribers();
+    }),
+
+    subscribe: protectedProcedure.mutation(async ({ ctx }) => {
+      await db.subscribeToNewsletter(ctx.user.id);
+      return { success: true };
+    }),
+
+    unsubscribe: protectedProcedure.mutation(async ({ ctx }) => {
+      await db.unsubscribeFromNewsletter(ctx.user.id);
+      return { success: true };
+    }),
+  }),
+
+  // Gamification routes
+  gamification: router({
+    getProfile: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserProfile(ctx.user.id);
+    }),
+
+    getLeaderboard: publicProcedure.query(async () => {
+      return db.getLeaderboard(10);
+    }),
+
+    listBadges: publicProcedure.query(async () => {
+      return db.listBadges();
+    }),
+  }),
+
   // Comments routes
   comments: router({
     getContentComments: publicProcedure
@@ -219,6 +305,10 @@ export const appRouter = router({
           eventId: input.eventId || null,
           text: input.text,
         });
+        
+        // Adicionar pontos por comentar
+        await db.addPoints(ctx.user.id, 10, 'comment', 'Comentou em um conteúdo');
+        
         return { success: true };
       }),
 

@@ -106,4 +106,68 @@ export const comments = mysqlTable("comments", {
 
 export type InsertComment = typeof comments.$inferInsert;
 
+// Gamification system
+export const userPoints = mysqlTable("user_points", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull().unique(),
+  totalPoints: int("total_points").default(0).notNull(),
+  level: int("level").default(1).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export const badges = mysqlTable("badges", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  icon: varchar("icon", { length: 50 }).notNull(), // emoji ou nome do ícone
+  pointsRequired: int("points_required").notNull(),
+  color: varchar("color", { length: 50 }).notNull(),
+});
+
+export const userBadges = mysqlTable("user_badges", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  badgeId: int("badge_id").notNull(),
+  earnedAt: timestamp("earned_at").defaultNow().notNull(),
+});
+
+export const pointsHistory = mysqlTable("points_history", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  points: int("points").notNull(),
+  action: varchar("action", { length: 100 }).notNull(), // "comment", "event_view", "content_view", etc.
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type InsertUserPoints = typeof userPoints.$inferInsert;
+export type InsertBadge = typeof badges.$inferInsert;
+export type InsertUserBadge = typeof userBadges.$inferInsert;
+export type InsertPointsHistory = typeof pointsHistory.$inferInsert;
+
+// Newsletter system
+export const newsletters = mysqlTable("newsletters", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  content: text("content").notNull(), // HTML content
+  status: mysqlEnum("status", ["draft", "scheduled", "sent"]).default("draft").notNull(),
+  scheduledFor: timestamp("scheduled_for"),
+  sentAt: timestamp("sent_at"),
+  createdBy: int("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export const newsletterSubscribers = mysqlTable("newsletter_subscribers", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull().unique(),
+  subscribed: int("subscribed").default(1).notNull(), // 1 = inscrito, 0 = cancelado
+  subscribedAt: timestamp("subscribed_at").defaultNow().notNull(),
+  unsubscribedAt: timestamp("unsubscribed_at"),
+});
+
+export type InsertNewsletter = typeof newsletters.$inferInsert;
+export type InsertNewsletterSubscriber = typeof newsletterSubscribers.$inferInsert;
+
 // TODO: Add your tables here
