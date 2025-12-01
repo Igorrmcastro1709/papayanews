@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, signupRequests } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -87,6 +87,73 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+// Signup request queries
+export async function createSignupRequest(name: string, email: string, code: string) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const expiresAt = new Date();
+  expiresAt.setMinutes(expiresAt.getMinutes() + 15); // Código expira em 15 minutos
+
+  await db.insert(signupRequests).values({
+    name,
+    email,
+    verificationCode: code,
+    verified: 0,
+    expiresAt,
+  });
+}
+
+export async function verifySignupCode(email: string, code: string) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const requests = await db
+    .select()
+    .from(signupRequests)
+    .where(eq(signupRequests.email, email))
+    .orderBy(signupRequests.createdAt)
+    .limit(1);
+
+  if (requests.length === 0) {
+    return { success: false, error: "Solicitação não encontrada" };
+  }
+
+  const request = requests[0];
+
+  if (request.verified === 1) {
+    return { success: false, error: "Código já foi utilizado" };
+  }
+
+  if (new Date() > request.expiresAt) {
+    return { success: false, error: "Código expirado" };
+  }
+
+  if (request.verificationCode !== code) {
+    return { success: false, error: "Código inválido" };
+  }
+
+  // Marcar como verificado
+  await db
+    .update(signupRequests)
+    .set({ verified: 1 })
+    .where(eq(signupRequests.id, request.id));
+
+  return { success: true, name: request.name, email: request.email };
+}
+
+export async function deleteOldSignupRequests() {
+  const db = await getDb();
+  if (!db) return;
+
+  const now = new Date();
+  await db.delete(signupRequests).where(eq(signupRequests.expiresAt, now));
 }
 
 // TODO: add feature queries here as your schema grows.

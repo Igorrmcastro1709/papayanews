@@ -11,24 +11,35 @@ import {
   BookOpen,
   Sparkles,
   LogOut,
-  User
+  User,
+  Menu,
+  X,
+  Home as HomeIcon
 } from "lucide-react";
+import { useState } from "react";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [, setLocation] = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const logoutMutation = trpc.auth.logout.useMutation();
 
   const handleLogout = async () => {
-    await logoutMutation.mutateAsync();
-    logout();
-    setLocation("/");
+    try {
+      await logoutMutation.mutateAsync();
+      logout();
+      toast.success("Logout realizado com sucesso");
+      setLocation("/");
+    } catch (error) {
+      toast.error("Erro ao fazer logout");
+    }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-100 via-blue-50 to-purple-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-orange-50">
         <div className="animate-pulse text-xl text-foreground">Carregando...</div>
       </div>
     );
@@ -39,33 +50,34 @@ export default function Dashboard() {
     return null;
   }
 
-  const featuredVideos = [
+  const featuredContent = [
     {
       title: "Yann Le Cun – Os novos desafios da IA",
       description: "Diretor científico de IA da Meta compartilha insights sobre o futuro da inteligência artificial",
       link: "https://www.youtube.com/watch?v=example1",
-      platform: "YouTube",
+      category: "Vídeo",
+      icon: Youtube,
     },
     {
       title: "Fei-Fei Li - From Words to Worlds",
       description: "Pioneira em visão computacional explora a evolução da IA generativa",
       link: "https://www.youtube.com/watch?v=example2",
-      platform: "YouTube",
+      category: "Vídeo",
+      icon: Youtube,
     },
     {
-      title: "Luciano Digiampietri - Ciência de dados (UNIVESP/USP)",
-      description: "Canal dedicado ao compartilhamento de videoaulas sobre computação e ciência de dados",
+      title: "Luciano Digiampietri - Ciência de dados",
+      description: "Canal dedicado ao compartilhamento de videoaulas sobre computação",
       link: "https://www.youtube.com/@LucianoDigiampietri",
-      platform: "YouTube",
+      category: "Canal",
+      icon: Youtube,
     },
-  ];
-
-  const weeklyHighlights = [
     {
-      title: "PapayaNews: Principais novidades da Semana",
+      title: "PapayaNews: Novidades da Semana",
       description: "Foco especial: Google puxa a nova fronteira da IA generativa",
       link: "https://papayanews.substack.com",
-      date: "24/11/2024",
+      category: "Newsletter",
+      icon: Mail,
     },
   ];
 
@@ -74,56 +86,60 @@ export default function Dashboard() {
       icon: Youtube, 
       label: "YouTube", 
       href: "https://youtube.com/@papayanews", 
-      color: "bg-red-500 hover:bg-red-600",
-      description: "Vídeos e entrevistas exclusivas"
+      color: "bg-red-500",
+      description: "Vídeos exclusivos"
     },
     { 
       icon: Linkedin, 
       label: "LinkedIn", 
       href: "https://www.linkedin.com/company/papaya-news-ai/", 
-      color: "bg-blue-600 hover:bg-blue-700",
-      description: "Artigos profissionais e networking"
+      color: "bg-blue-600",
+      description: "Artigos profissionais"
     },
     { 
       icon: Instagram, 
       label: "Instagram", 
       href: "https://instagram.com/papayanews", 
-      color: "bg-pink-500 hover:bg-pink-600",
-      description: "Conteúdo visual e stories"
+      color: "bg-pink-500",
+      description: "Conteúdo visual"
     },
     { 
       icon: Mail, 
       label: "Substack", 
       href: "https://papayanews.substack.com", 
-      color: "bg-orange-500 hover:bg-orange-600",
+      color: "bg-orange-500",
       description: "Newsletter semanal"
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-orange-50">
       {/* Header */}
-      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
+        <div className="container">
+          <div className="flex items-center justify-between h-16 md:h-20">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
               <img 
                 src="/papaya-logo.png" 
                 alt="PapayaNews" 
-                className="w-12 h-12 object-contain"
+                className="w-10 h-10 md:w-12 md:h-12 object-contain"
               />
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent">
+                <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent">
                   PapayaNews
                 </h1>
-                <p className="text-sm text-muted-foreground">Comunidade Exclusiva</p>
+                <p className="hidden sm:block text-xs text-muted-foreground">Área de Membros</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm">
+            {/* Desktop User Menu */}
+            <div className="hidden md:flex items-center gap-4">
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium text-foreground">{user.name || user.email}</span>
+                <span className="text-sm font-medium text-foreground">
+                  {user.name?.split(' ')[0] || user.email}
+                </span>
               </div>
               <Button 
                 variant="outline" 
@@ -135,87 +151,90 @@ export default function Dashboard() {
                 Sair
               </Button>
             </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden py-4 border-t border-gray-200 space-y-3">
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">
+                  {user.name || user.email}
+                </span>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="w-full gap-2"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4" />
+                Sair
+              </Button>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="container py-8 space-y-8">
-        {/* Welcome Section */}
-        <Card className="border-2 border-primary/20 bg-gradient-to-br from-orange-50 to-yellow-50">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-primary" />
-              <CardTitle className="text-2xl">
-                Bem-vindo(a), {user.name?.split(' ')[0] || 'Membro'}!
-              </CardTitle>
+      <main className="container py-6 md:py-10 space-y-8">
+        {/* Welcome Card */}
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-50 overflow-hidden">
+          <CardHeader className="relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-400/20 to-yellow-400/20 rounded-full blur-3xl" />
+            <div className="relative flex items-start gap-3">
+              <div className="p-3 bg-white rounded-full shadow-lg">
+                <Sparkles className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <CardTitle className="text-xl md:text-2xl mb-2">
+                  Bem-vindo(a), {user.name?.split(' ')[0] || 'Membro'}! 👋
+                </CardTitle>
+                <CardDescription className="text-base text-foreground/70">
+                  Explore os conteúdos exclusivos sobre IA, startups e inovação
+                </CardDescription>
+              </div>
             </div>
-            <CardDescription className="text-base">
-              Explore os conteúdos exclusivos da comunidade PapayaNews sobre IA, startups e inovação.
-            </CardDescription>
           </CardHeader>
         </Card>
 
-        {/* Featured Videos */}
+        {/* Featured Content Grid */}
         <section>
           <div className="flex items-center gap-2 mb-6">
-            <Youtube className="h-6 w-6 text-red-600" />
-            <h2 className="text-2xl font-bold text-foreground">Vídeos em Destaque</h2>
+            <BookOpen className="h-6 w-6 text-primary" />
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Conteúdo em Destaque</h2>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredVideos.map((video, index) => (
-              <Card key={index} className="group hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50">
-                <CardHeader>
-                  <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
-                    {video.title}
-                  </CardTitle>
-                  <CardDescription className="line-clamp-3">
-                    {video.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button 
-                    className="w-full gap-2" 
-                    onClick={() => window.open(video.link, '_blank')}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Assistir no {video.platform}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        {/* Weekly Highlights */}
-        <section>
-          <div className="flex items-center gap-2 mb-6">
-            <BookOpen className="h-6 w-6 text-orange-600" />
-            <h2 className="text-2xl font-bold text-foreground">Destaques da Semana</h2>
-          </div>
-          
-          <div className="grid gap-6">
-            {weeklyHighlights.map((highlight, index) => (
-              <Card key={index} className="border-2 hover:border-primary/50 transition-all duration-300">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
+          <div className="grid sm:grid-cols-2 gap-4 md:gap-6">
+            {featuredContent.map((content, index) => (
+              <Card 
+                key={index} 
+                className="group hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer"
+                onClick={() => window.open(content.link, '_blank')}
+              >
+                <CardHeader className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
-                      <CardTitle className="text-xl mb-2">{highlight.title}</CardTitle>
-                      <CardDescription className="text-base">
-                        {highlight.description}
-                      </CardDescription>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Publicado em {highlight.date}
-                      </p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <content.icon className="h-4 w-4 text-primary" />
+                        <span className="text-xs font-medium text-primary">{content.category}</span>
+                      </div>
+                      <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
+                        {content.title}
+                      </CardTitle>
                     </div>
-                    <Button 
-                      onClick={() => window.open(highlight.link, '_blank')}
-                      className="gap-2"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      Ler no Substack
-                    </Button>
+                    <ExternalLink className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
                   </div>
+                  <CardDescription className="text-sm line-clamp-2">
+                    {content.description}
+                  </CardDescription>
                 </CardHeader>
               </Card>
             ))}
@@ -224,22 +243,25 @@ export default function Dashboard() {
 
         {/* Social Links */}
         <section>
-          <h2 className="text-2xl font-bold text-foreground mb-6">Conecte-se Conosco</h2>
+          <div className="flex items-center gap-2 mb-6">
+            <HomeIcon className="h-6 w-6 text-primary" />
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Nossas Redes</h2>
+          </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {socialLinks.map((social) => (
               <Card 
                 key={social.label} 
-                className="group hover:shadow-xl transition-all duration-300 cursor-pointer border-2 hover:border-primary/50"
+                className="group hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer overflow-hidden"
                 onClick={() => window.open(social.href, '_blank')}
               >
                 <CardContent className="p-6 flex flex-col items-center text-center gap-4">
-                  <div className={`p-4 rounded-full ${social.color} text-white transition-transform group-hover:scale-110`}>
-                    <social.icon className="h-8 w-8" />
+                  <div className={`p-4 rounded-full ${social.color} text-white transition-transform group-hover:scale-110 shadow-lg`}>
+                    <social.icon className="h-6 w-6" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg mb-1">{social.label}</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="font-bold text-base mb-1">{social.label}</h3>
+                    <p className="text-xs text-muted-foreground">
                       {social.description}
                     </p>
                   </div>
@@ -251,32 +273,33 @@ export default function Dashboard() {
 
         {/* Special Content */}
         <section>
-          <Card className="border-2 border-secondary/50 bg-gradient-to-br from-green-50 to-teal-50">
+          <Card className="border-2 border-secondary/50 bg-gradient-to-br from-green-50 to-teal-50 overflow-hidden">
             <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-secondary" />
-                Conteúdo Especial
-              </CardTitle>
+                <CardTitle className="text-xl">Conteúdo Especial</CardTitle>
+              </div>
               <CardDescription>
-                Explore criações exclusivas da comunidade
+                Criações exclusivas da comunidade
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-card rounded-lg border">
-                  <div>
-                    <h4 className="font-semibold text-foreground">PapayaSong - L'Algorithme du Rêve</h4>
-                    <p className="text-sm text-muted-foreground">Música gerada por IA sobre o futuro da tecnologia</p>
-                  </div>
-                  <Button 
-                    variant="secondary"
-                    onClick={() => window.open('https://suno.ai', '_blank')}
-                    className="gap-2"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Ouvir
-                  </Button>
+              <div 
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white rounded-lg border-2 hover:border-secondary/50 transition-all cursor-pointer"
+                onClick={() => window.open('https://suno.ai', '_blank')}
+              >
+                <div className="flex-1">
+                  <h4 className="font-semibold text-foreground mb-1">PapayaSong - L'Algorithme du Rêve</h4>
+                  <p className="text-sm text-muted-foreground">Música gerada por IA sobre o futuro da tecnologia</p>
                 </div>
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  className="gap-2 w-full sm:w-auto"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Ouvir
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -284,10 +307,14 @@ export default function Dashboard() {
       </main>
 
       {/* Footer */}
-      <footer className="py-8 border-t bg-card mt-12">
-        <div className="container text-center text-sm text-muted-foreground">
-          <p>© 2025 PapayaNews. Todos os direitos reservados.</p>
-          <p className="mt-2">Comunidade exclusiva para membros</p>
+      <footer className="py-8 border-t bg-white/80 backdrop-blur-sm mt-12">
+        <div className="container text-center">
+          <p className="text-sm text-muted-foreground">
+            © 2025 PapayaNews. Todos os direitos reservados.
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Comunidade exclusiva para membros
+          </p>
         </div>
       </footer>
     </div>

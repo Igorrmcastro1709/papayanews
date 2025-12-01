@@ -25,4 +25,20 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+/**
+ * Tabela para armazenar solicitações de cadastro pendentes
+ */
+export const signupRequests = mysqlTable("signup_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  name: text("name").notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  verificationCode: varchar("verification_code", { length: 6 }).notNull(),
+  verified: int("verified").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
+export type SignupRequest = typeof signupRequests.$inferSelect;
+export type InsertSignupRequest = typeof signupRequests.$inferInsert;
+
 // TODO: Add your tables here

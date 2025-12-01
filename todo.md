@@ -33,3 +33,15 @@
 
 ## Atualizações
 - [x] Atualizar link do LinkedIn para https://www.linkedin.com/company/papaya-news-ai/
+
+
+## Redesign e Melhorias de UX
+- [x] Criar schema de banco de dados para cadastro customizado
+- [x] Implementar sistema de verificação de email com código
+- [x] Criar formulário de cadastro com nome e email
+- [x] Redesenhar landing page com UX moderna e mobile-first
+- [x] Melhorar navegação do dashboard
+- [x] Otimizar todos os componentes para mobile
+- [x] Adicionar animações e transições suaves
+- [x] Implementar design system consistente
+- [x] Testar responsividade em diferentes tamanhos de tela
