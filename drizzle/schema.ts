@@ -184,4 +184,44 @@ export const notifications = mysqlTable("notifications", {
 
 export type InsertNotification = typeof notifications.$inferInsert;
 
+// Forum tables
+export const forumThreads = mysqlTable("forum_threads", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  category: varchar("category", { length: 50 }).notNull(),
+  upvotes: int("upvotes").default(0).notNull(),
+  views: int("views").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ForumThread = typeof forumThreads.$inferSelect;
+export type InsertForumThread = typeof forumThreads.$inferInsert;
+
+export const forumReplies = mysqlTable("forum_replies", {
+  id: int("id").autoincrement().primaryKey(),
+  threadId: int("thread_id").notNull(),
+  userId: int("user_id").notNull(),
+  content: text("content").notNull(),
+  upvotes: int("upvotes").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ForumReply = typeof forumReplies.$inferSelect;
+export type InsertForumReply = typeof forumReplies.$inferInsert;
+
+export const forumUpvotes = mysqlTable("forum_upvotes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  threadId: int("thread_id"),
+  replyId: int("reply_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ForumUpvote = typeof forumUpvotes.$inferSelect;
+export type InsertForumUpvote = typeof forumUpvotes.$inferInsert;
+
 // TODO: Add your tables here

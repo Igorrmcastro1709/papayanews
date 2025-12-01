@@ -1,6 +1,6 @@
 import { eq, and, gte, count, sql, desc, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, InsertNotification } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
 import { sendVerificationEmail as sendVerificationEmailResend } from './_core/email';
@@ -687,6 +687,218 @@ export async function getUnreadNotificationsCount(userId: number) {
     .where(and(eq(notifications.userId, userId), eq(notifications.read, 0)));
 
   return result[0]?.count || 0;
+}
+
+// Search queries
+export async function searchContents(query: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select()
+    .from(featuredContent)
+    .where(
+      or(
+        sql`LOWER(${featuredContent.title}) LIKE LOWER(${`%${query}%`})`,
+        sql`LOWER(${featuredContent.description}) LIKE LOWER(${`%${query}%`})`
+      )
+    )
+    .limit(10);
+}
+
+export async function searchEvents(query: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select()
+    .from(events)
+    .where(
+      or(
+        sql`LOWER(${events.title}) LIKE LOWER(${`%${query}%`})`,
+        sql`LOWER(${events.description}) LIKE LOWER(${`%${query}%`})`,
+        sql`LOWER(${events.location}) LIKE LOWER(${`%${query}%`})`
+      )
+    )
+    .limit(10);
+}
+
+export async function searchMembers(query: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .where(
+      or(
+        sql`LOWER(${users.name}) LIKE LOWER(${`%${query}%`})`,
+        sql`LOWER(${users.email}) LIKE LOWER(${`%${query}%`})`
+      )
+    )
+    .limit(10);
+}
+
+// Forum queries
+export async function createForumThread(data: { userId: number; title: string; content: string; category: string }) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(forumThreads).values(data);
+  return result;
+}
+
+export async function getForumThreads(category?: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  let query = db
+    .select({
+      id: forumThreads.id,
+      userId: forumThreads.userId,
+      title: forumThreads.title,
+      content: forumThreads.content,
+      category: forumThreads.category,
+      upvotes: forumThreads.upvotes,
+      views: forumThreads.views,
+      createdAt: forumThreads.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(forumThreads)
+    .leftJoin(users, eq(forumThreads.userId, users.id))
+    .orderBy(desc(forumThreads.createdAt));
+
+  if (category) {
+    return query.where(eq(forumThreads.category, category));
+  }
+
+  return query;
+}
+
+export async function getForumThread(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select({
+      id: forumThreads.id,
+      userId: forumThreads.userId,
+      title: forumThreads.title,
+      content: forumThreads.content,
+      category: forumThreads.category,
+      upvotes: forumThreads.upvotes,
+      views: forumThreads.views,
+      createdAt: forumThreads.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(forumThreads)
+    .leftJoin(users, eq(forumThreads.userId, users.id))
+    .where(eq(forumThreads.id, id))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+export async function incrementThreadViews(id: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(forumThreads).set({ views: sql`${forumThreads.views} + 1` }).where(eq(forumThreads.id, id));
+}
+
+export async function createForumReply(data: { threadId: number; userId: number; content: string }) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(forumReplies).values(data);
+  return result;
+}
+
+export async function getForumReplies(threadId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      id: forumReplies.id,
+      threadId: forumReplies.threadId,
+      userId: forumReplies.userId,
+      content: forumReplies.content,
+      upvotes: forumReplies.upvotes,
+      createdAt: forumReplies.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(forumReplies)
+    .leftJoin(users, eq(forumReplies.userId, users.id))
+    .where(eq(forumReplies.threadId, threadId))
+    .orderBy(forumReplies.createdAt);
+}
+
+export async function toggleUpvote(data: { userId: number; threadId?: number; replyId?: number }) {
+  const db = await getDb();
+  if (!db) return { success: false };
+
+  // Check if already upvoted
+  const existing = await db
+    .select()
+    .from(forumUpvotes)
+    .where(
+      and(
+        eq(forumUpvotes.userId, data.userId),
+        data.threadId ? eq(forumUpvotes.threadId, data.threadId) : sql`${forumUpvotes.threadId} IS NULL`,
+        data.replyId ? eq(forumUpvotes.replyId, data.replyId) : sql`${forumUpvotes.replyId} IS NULL`
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    // Remove upvote
+    await db.delete(forumUpvotes).where(eq(forumUpvotes.id, existing[0].id));
+
+    // Decrement count
+    if (data.threadId) {
+      await db.update(forumThreads).set({ upvotes: sql`${forumThreads.upvotes} - 1` }).where(eq(forumThreads.id, data.threadId));
+    } else if (data.replyId) {
+      await db.update(forumReplies).set({ upvotes: sql`${forumReplies.upvotes} - 1` }).where(eq(forumReplies.id, data.replyId));
+    }
+
+    return { success: true, action: 'removed' };
+  } else {
+    // Add upvote
+    await db.insert(forumUpvotes).values(data);
+
+    // Increment count
+    if (data.threadId) {
+      await db.update(forumThreads).set({ upvotes: sql`${forumThreads.upvotes} + 1` }).where(eq(forumThreads.id, data.threadId));
+    } else if (data.replyId) {
+      await db.update(forumReplies).set({ upvotes: sql`${forumReplies.upvotes} + 1` }).where(eq(forumReplies.id, data.replyId));
+    }
+
+    return { success: true, action: 'added' };
+  }
+}
+
+export async function getUserUpvotes(userId: number) {
+  const db = await getDb();
+  if (!db) return { threadIds: [], replyIds: [] };
+
+  const upvotes = await db
+    .select()
+    .from(forumUpvotes)
+    .where(eq(forumUpvotes.userId, userId));
+
+  return {
+    threadIds: upvotes.filter(u => u.threadId).map(u => u.threadId!),
+    replyIds: upvotes.filter(u => u.replyId).map(u => u.replyId!),
+  };
 }
 
 // TODO: add feature queries here as your schema grows.

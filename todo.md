@@ -116,3 +116,16 @@
 - [x] Implementar integração com Instagram API (copiar legenda)
 - [x] Criar templates de posts para redes sociais
 - [x] Testar todas as funcionalidades
+
+## Sistema de Busca e Fórum
+- [x] Criar sistema de busca global
+- [x] Implementar busca de conteúdos
+- [x] Implementar busca de eventos  
+- [x] Implementar busca de membros
+- [x] Adicionar filtros de busca
+- [x] Criar schema de fórum no banco de dados
+- [x] Implementar criação de threads (backend pronto)
+- [x] Adicionar sistema de upvotes (backend pronto)
+- [x] Implementar respostas em threads (backend pronto)
+- [x] Adicionar moderação de fórum (preparado para admins)
+- [x] Testar todas as funcionalidades

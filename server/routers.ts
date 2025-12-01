@@ -493,6 +493,31 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  // Search routes
+  search: router({
+    global: publicProcedure
+      .input(z.object({ 
+        query: z.string(),
+        filter: z.enum(['all', 'content', 'events', 'members']).optional()
+      }))
+      .query(async ({ input }) => {
+        const { query, filter = 'all' } = input;
+        const results: any = { contents: [], events: [], members: [] };
+
+        if (filter === 'all' || filter === 'content') {
+          results.contents = await db.searchContents(query);
+        }
+        if (filter === 'all' || filter === 'events') {
+          results.events = await db.searchEvents(query);
+        }
+        if (filter === 'all' || filter === 'members') {
+          results.members = await db.searchMembers(query);
+        }
+
+        return results;
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

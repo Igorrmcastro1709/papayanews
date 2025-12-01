@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { Search as SearchIcon } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import SocialShare from "@/components/SocialShare";
 import { Button } from "@/components/ui/button";
@@ -124,7 +125,15 @@ export default function Dashboard() {
             
             {/* Desktop User Menu */}
             <div className="hidden md:flex items-center gap-4">
-              <NotificationBell />
+              <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation("/search")}
+              className="relative"
+            >
+              <SearchIcon className="h-5 w-5" />
+            </Button>
+            <NotificationBell />
               <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
                 <User className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium text-foreground">
