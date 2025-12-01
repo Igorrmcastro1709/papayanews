@@ -1,9 +1,20 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { createSignupRequest, verifySignupCode } from "./db";
+import { 
+  createSignupRequest, 
+  verifySignupCode,
+  getAllFeaturedContent,
+  createFeaturedContent,
+  updateFeaturedContent,
+  deleteFeaturedContent,
+  getAllActiveEvents,
+  createEvent,
+  updateEvent,
+  deleteEvent
+} from "./db";
 import { TRPCError } from "@trpc/server";
 
 export const appRouter = router({
@@ -76,6 +87,116 @@ export const appRouter = router({
           name: result.name,
           email: result.email,
         };
+      }),
+  }),
+
+  content: router({
+    list: publicProcedure.query(async () => {
+      return await getAllFeaturedContent();
+    }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          title: z.string().min(1),
+          description: z.string().min(1),
+          link: z.string().url(),
+          category: z.string(),
+          order: z.number().default(0),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem criar conteúdo" });
+        }
+        await createFeaturedContent(input);
+        return { success: true };
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          title: z.string().optional(),
+          description: z.string().optional(),
+          link: z.string().url().optional(),
+          category: z.string().optional(),
+          order: z.number().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { id, ...data } = input;
+        await updateFeaturedContent(id, data);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        await deleteFeaturedContent(input.id);
+        return { success: true };
+      }),
+  }),
+
+  events: router({
+    list: publicProcedure.query(async () => {
+      return await getAllActiveEvents();
+    }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          title: z.string().min(1),
+          description: z.string().min(1),
+          eventDate: z.date(),
+          location: z.string().optional(),
+          link: z.string().url().optional(),
+          imageUrl: z.string().url().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem criar eventos" });
+        }
+        await createEvent(input);
+        return { success: true };
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          title: z.string().optional(),
+          description: z.string().optional(),
+          eventDate: z.date().optional(),
+          location: z.string().optional(),
+          link: z.string().url().optional(),
+          imageUrl: z.string().url().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { id, ...data } = input;
+        await updateEvent(id, data);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        await deleteEvent(input.id);
+        return { success: true };
       }),
   }),
 

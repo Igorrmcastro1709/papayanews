@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -154,6 +154,73 @@ export async function deleteOldSignupRequests() {
 
   const now = new Date();
   await db.delete(signupRequests).where(eq(signupRequests.expiresAt, now));
+}
+
+// Featured Content queries
+export async function getAllFeaturedContent() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(featuredContent)
+    .where(eq(featuredContent.active, 1))
+    .orderBy(featuredContent.order);
+}
+
+export async function createFeaturedContent(content: InsertFeaturedContent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(featuredContent).values(content);
+}
+
+export async function updateFeaturedContent(id: number, content: Partial<InsertFeaturedContent>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(featuredContent).set(content).where(eq(featuredContent.id, id));
+}
+
+export async function deleteFeaturedContent(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(featuredContent).set({ active: 0 }).where(eq(featuredContent.id, id));
+}
+
+// Events queries
+export async function getAllActiveEvents() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const now = new Date();
+  return await db
+    .select()
+    .from(events)
+    .where(eq(events.active, 1))
+    .orderBy(events.eventDate);
+}
+
+export async function createEvent(event: InsertEvent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(events).values(event);
+}
+
+export async function updateEvent(id: number, event: Partial<InsertEvent>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(events).set(event).where(eq(events.id, id));
+}
+
+export async function deleteEvent(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(events).set({ active: 0 }).where(eq(events.id, id));
 }
 
 // TODO: add feature queries here as your schema grows.

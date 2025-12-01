@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { 
   Youtube, 
@@ -14,17 +15,26 @@ import {
   User,
   Menu,
   X,
-  Home as HomeIcon
+  Home as HomeIcon,
+  Calendar,
+  MapPin,
+  Clock
 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function Dashboard() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const logoutMutation = trpc.auth.logout.useMutation();
+
+  // Buscar conteúdos e eventos do banco de dados
+  const { data: featuredContent = [], isLoading: loadingContent } = trpc.content.list.useQuery();
+  const { data: events = [], isLoading: loadingEvents } = trpc.events.list.useQuery();
 
   const handleLogout = async () => {
     try {
@@ -50,36 +60,13 @@ export default function Dashboard() {
     return null;
   }
 
-  const featuredContent = [
-    {
-      title: "Yann Le Cun – Os novos desafios da IA",
-      description: "Diretor científico de IA da Meta compartilha insights sobre o futuro da inteligência artificial",
-      link: "https://www.youtube.com/watch?v=example1",
-      category: "Vídeo",
-      icon: Youtube,
-    },
-    {
-      title: "Fei-Fei Li - From Words to Worlds",
-      description: "Pioneira em visão computacional explora a evolução da IA generativa",
-      link: "https://www.youtube.com/watch?v=example2",
-      category: "Vídeo",
-      icon: Youtube,
-    },
-    {
-      title: "Luciano Digiampietri - Ciência de dados",
-      description: "Canal dedicado ao compartilhamento de videoaulas sobre computação",
-      link: "https://www.youtube.com/@LucianoDigiampietri",
-      category: "Canal",
-      icon: Youtube,
-    },
-    {
-      title: "PapayaNews: Novidades da Semana",
-      description: "Foco especial: Google puxa a nova fronteira da IA generativa",
-      link: "https://papayanews.substack.com",
-      category: "Newsletter",
-      icon: Mail,
-    },
-  ];
+  const getCategoryIcon = (category: string) => {
+    const categoryLower = category.toLowerCase();
+    if (categoryLower.includes("vídeo") || categoryLower.includes("video")) return Youtube;
+    if (categoryLower.includes("newsletter")) return Mail;
+    if (categoryLower.includes("canal")) return Youtube;
+    return BookOpen;
+  };
 
   const socialLinks = [
     { 
@@ -205,6 +192,72 @@ export default function Dashboard() {
           </CardHeader>
         </Card>
 
+        {/* Upcoming Events Section */}
+        {events.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-6">
+              <Calendar className="h-6 w-6 text-primary" />
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground">Próximos Eventos</h2>
+            </div>
+            
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {events.map((event) => (
+                <Card 
+                  key={event.id} 
+                  className="group hover:shadow-xl hover:border-primary/50 transition-all duration-300 overflow-hidden"
+                >
+                  {event.imageUrl && (
+                    <div className="h-40 overflow-hidden bg-gradient-to-br from-purple-100 to-orange-100">
+                      <img 
+                        src={event.imageUrl} 
+                        alt={event.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  )}
+                  <CardHeader className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
+                        {event.title}
+                      </CardTitle>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-primary" />
+                        <span>{format(new Date(event.eventDate), "PPP 'às' HH:mm", { locale: ptBR })}</span>
+                      </div>
+                      
+                      {event.location && (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          <span className="line-clamp-1">{event.location}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <CardDescription className="text-sm line-clamp-3">
+                      {event.description}
+                    </CardDescription>
+
+                    {event.link && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="w-full gap-2 mt-2"
+                        onClick={() => window.open(event.link!, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Mais Informações
+                      </Button>
+                    )}
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Featured Content Grid */}
         <section>
           <div className="flex items-center gap-2 mb-6">
@@ -212,33 +265,46 @@ export default function Dashboard() {
             <h2 className="text-2xl md:text-3xl font-bold text-foreground">Conteúdo em Destaque</h2>
           </div>
           
-          <div className="grid sm:grid-cols-2 gap-4 md:gap-6">
-            {featuredContent.map((content, index) => (
-              <Card 
-                key={index} 
-                className="group hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer"
-                onClick={() => window.open(content.link, '_blank')}
-              >
-                <CardHeader className="space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <content.icon className="h-4 w-4 text-primary" />
-                        <span className="text-xs font-medium text-primary">{content.category}</span>
+          {loadingContent ? (
+            <div className="text-center py-12 text-muted-foreground">Carregando conteúdos...</div>
+          ) : featuredContent.length === 0 ? (
+            <Card className="p-12 text-center">
+              <p className="text-muted-foreground">Nenhum conteúdo disponível no momento.</p>
+            </Card>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-4 md:gap-6">
+              {featuredContent.map((content) => {
+                const Icon = getCategoryIcon(content.category);
+                return (
+                  <Card 
+                    key={content.id} 
+                    className="group hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer"
+                    onClick={() => window.open(content.link, '_blank')}
+                  >
+                    <CardHeader className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Icon className="h-4 w-4 text-primary" />
+                            <Badge variant="secondary" className="text-xs">
+                              {content.category}
+                            </Badge>
+                          </div>
+                          <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
+                            {content.title}
+                          </CardTitle>
+                        </div>
+                        <ExternalLink className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
                       </div>
-                      <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
-                        {content.title}
-                      </CardTitle>
-                    </div>
-                    <ExternalLink className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
-                  </div>
-                  <CardDescription className="text-sm line-clamp-2">
-                    {content.description}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
+                      <CardDescription className="text-sm line-clamp-2">
+                        {content.description}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* Social Links */}
@@ -269,40 +335,6 @@ export default function Dashboard() {
               </Card>
             ))}
           </div>
-        </section>
-
-        {/* Special Content */}
-        <section>
-          <Card className="border-2 border-secondary/50 bg-gradient-to-br from-green-50 to-teal-50 overflow-hidden">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-secondary" />
-                <CardTitle className="text-xl">Conteúdo Especial</CardTitle>
-              </div>
-              <CardDescription>
-                Criações exclusivas da comunidade
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div 
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white rounded-lg border-2 hover:border-secondary/50 transition-all cursor-pointer"
-                onClick={() => window.open('https://suno.ai', '_blank')}
-              >
-                <div className="flex-1">
-                  <h4 className="font-semibold text-foreground mb-1">PapayaSong - L'Algorithme du Rêve</h4>
-                  <p className="text-sm text-muted-foreground">Música gerada por IA sobre o futuro da tecnologia</p>
-                </div>
-                <Button 
-                  variant="secondary"
-                  size="sm"
-                  className="gap-2 w-full sm:w-auto"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Ouvir
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </section>
       </main>
 

@@ -45,3 +45,14 @@
 - [x] Adicionar animações e transições suaves
 - [x] Implementar design system consistente
 - [x] Testar responsividade em diferentes tamanhos de tela
+
+## Ajustes Finos e Novas Funcionalidades
+- [x] Criar schema de banco de dados para conteúdos gerenciáveis
+- [x] Criar schema de banco de dados para eventos
+- [x] Implementar CRUD de conteúdos destacados
+- [x] Implementar CRUD de eventos
+- [ ] Criar página de administração para gerenciar conteúdos (futuro)
+- [x] Adicionar seção de eventos no dashboard
+- [x] Integrar autenticação com Google OAuth
+- [x] Criar botão de login com Google na landing page
+- [x] Testar todas as funcionalidades
