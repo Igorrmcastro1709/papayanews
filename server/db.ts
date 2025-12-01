@@ -1,8 +1,9 @@
-import { eq, and, gte } from "drizzle-orm";
+import { eq, and, gte, count, sql, desc, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
+import { sendVerificationEmail as sendVerificationEmailResend } from './_core/email';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -118,10 +119,20 @@ export async function createSignupRequest(name: string, email: string, code: str
 }
 
 /**
- * Envia notificação com código de verificação
- * Em produção, integre com SendGrid, Mailgun, AWS SES, etc.
+ * Envia email de verificação para o usuário
+ * Se RESEND_API_KEY estiver configurada, envia email real
+ * Caso contrário, envia notificação ao proprietário
  */
 export async function sendVerificationEmail(email: string, name: string, code: string) {
+  // Tentar enviar email real primeiro
+  const emailSent = await sendVerificationEmailResend(email, name, code);
+  
+  if (emailSent) {
+    console.log(`✅ Email de verificação enviado para ${email}`);
+    return;
+  }
+  
+  // Fallback: notificar proprietário se email não foi enviado
   const message = `
 🆕 Novo cadastro na comunidade PapayaNews!
 
@@ -130,14 +141,16 @@ export async function sendVerificationEmail(email: string, name: string, code: s
 🔐 Código de verificação: ${code}
 
 ⏰ Válido por 15 minutos
+
+⚠️ RESEND_API_KEY não configurada - email não foi enviado ao usuário.
   `.trim();
 
   await notifyOwner({
-    title: 'Novo Cadastro - PapayaNews',
+    title: 'Novo Cadastro - PapayaNews (Email não enviado)',
     content: message,
   });
 
-  console.log(`📧 Notificação de cadastro enviada`);
+  console.log(`📧 Notificação de cadastro enviada ao proprietário`);
 }
 
 export async function verifySignupCode(email: string, code: string) {
@@ -253,6 +266,161 @@ export async function deleteEvent(id: number) {
   if (!db) throw new Error("Database not available");
 
   await db.update(events).set({ active: 0 }).where(eq(events.id, id));
+}
+
+// Analytics queries
+export async function getAnalytics() {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Total de membros
+  const totalMembers = await db.select({ count: count() }).from(users);
+  
+  // Membros ativos (últimos 30 dias)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const activeMembers = await db
+    .select({ count: count() })
+    .from(users)
+    .where(gte(users.lastSignedIn, thirtyDaysAgo));
+
+  // Conteúdos mais acessados
+  const topContent = await db
+    .select({
+      contentId: contentViews.contentId,
+      views: count(contentViews.id),
+    })
+    .from(contentViews)
+    .groupBy(contentViews.contentId)
+    .orderBy(sql`count(${contentViews.id}) DESC`)
+    .limit(5);
+
+  // Eventos mais visualizados
+  const topEvents = await db
+    .select({
+      eventId: eventViews.eventId,
+      views: count(eventViews.id),
+    })
+    .from(eventViews)
+    .groupBy(eventViews.eventId)
+    .orderBy(sql`count(${eventViews.id}) DESC`)
+    .limit(5);
+
+  // Total de visualizações de conteúdo
+  const totalContentViews = await db.select({ count: count() }).from(contentViews);
+  
+  // Total de visualizações de eventos
+  const totalEventViews = await db.select({ count: count() }).from(eventViews);
+
+  return {
+    totalMembers: totalMembers[0]?.count || 0,
+    activeMembers: activeMembers[0]?.count || 0,
+    totalContentViews: totalContentViews[0]?.count || 0,
+    totalEventViews: totalEventViews[0]?.count || 0,
+    topContent,
+    topEvents,
+  };
+}
+
+export async function trackContentView(contentId: number, userId?: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.insert(contentViews).values({
+    contentId,
+    userId: userId || null,
+  });
+}
+
+export async function trackEventView(eventId: number, userId?: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.insert(eventViews).values({
+    eventId,
+    userId: userId || null,
+  });
+}
+
+// Comments queries
+export async function createComment(comment: InsertComment) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(comments).values(comment);
+  return result;
+}
+
+export async function getContentComments(contentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      id: comments.id,
+      text: comments.text,
+      createdAt: comments.createdAt,
+      approved: comments.approved,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(comments)
+    .leftJoin(users, eq(comments.userId, users.id))
+    .where(and(eq(comments.contentId, contentId), eq(comments.approved, 1)))
+    .orderBy(desc(comments.createdAt));
+}
+
+export async function getEventComments(eventId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      id: comments.id,
+      text: comments.text,
+      createdAt: comments.createdAt,
+      approved: comments.approved,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(comments)
+    .leftJoin(users, eq(comments.userId, users.id))
+    .where(and(eq(comments.eventId, eventId), eq(comments.approved, 1)))
+    .orderBy(desc(comments.createdAt));
+}
+
+export async function getPendingComments() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      id: comments.id,
+      text: comments.text,
+      contentId: comments.contentId,
+      eventId: comments.eventId,
+      createdAt: comments.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(comments)
+    .leftJoin(users, eq(comments.userId, users.id))
+    .where(eq(comments.approved, 0))
+    .orderBy(desc(comments.createdAt));
+}
+
+export async function approveComment(commentId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(comments).set({ approved: 1 }).where(eq(comments.id, commentId));
+}
+
+export async function deleteComment(commentId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.delete(comments).where(eq(comments.id, commentId));
 }
 
 // TODO: add feature queries here as your schema grows.

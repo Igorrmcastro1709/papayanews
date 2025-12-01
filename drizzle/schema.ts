@@ -75,7 +75,35 @@ export const events = mysqlTable("events", {
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
 
-export type Event = typeof events.$inferSelect;
 export type InsertEvent = typeof events.$inferInsert;
+
+// Analytics tracking
+export const contentViews = mysqlTable("content_views", {
+  id: int("id").autoincrement().primaryKey(),
+  contentId: int("content_id").notNull(),
+  userId: int("user_id"),
+  viewedAt: timestamp("viewed_at").defaultNow().notNull(),
+});
+
+export const eventViews = mysqlTable("event_views", {
+  id: int("id").autoincrement().primaryKey(),
+  eventId: int("event_id").notNull(),
+  userId: int("user_id"),
+  viewedAt: timestamp("viewed_at").defaultNow().notNull(),
+});
+
+// Comments system
+export const comments = mysqlTable("comments", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  contentId: int("content_id"), // Null se for comentário em evento
+  eventId: int("event_id"), // Null se for comentário em conteúdo
+  text: text("text").notNull(),
+  approved: int("approved").default(1).notNull(), // 1 = aprovado, 0 = pendente moderação
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type InsertComment = typeof comments.$inferInsert;
 
 // TODO: Add your tables here

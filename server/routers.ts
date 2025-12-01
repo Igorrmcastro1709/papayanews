@@ -189,6 +189,91 @@ export const appRouter = router({
       }),
   }),
 
+  // Comments routes
+  comments: router({
+    getContentComments: publicProcedure
+      .input(z.object({ contentId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getContentComments(input.contentId);
+      }),
+
+    getEventComments: publicProcedure
+      .input(z.object({ eventId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getEventComments(input.eventId);
+      }),
+
+    createComment: protectedProcedure
+      .input(z.object({
+        contentId: z.number().optional(),
+        eventId: z.number().optional(),
+        text: z.string().min(1).max(1000),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!input.contentId && !input.eventId) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Especifique contentId ou eventId' });
+        }
+        await db.createComment({
+          userId: ctx.user.id,
+          contentId: input.contentId || null,
+          eventId: input.eventId || null,
+          text: input.text,
+        });
+        return { success: true };
+      }),
+
+    getPending: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+      }
+      return db.getPendingComments();
+    }),
+
+    approve: protectedProcedure
+      .input(z.object({ commentId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+        }
+        await db.approveComment(input.commentId);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ commentId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+        }
+        await db.deleteComment(input.commentId);
+        return { success: true };
+      }),
+  }),
+
+  // Analytics routes
+  analytics: router({  
+    getStats: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Acesso negado' });
+      }
+      return db.getAnalytics();
+    }),
+
+    trackContentView: publicProcedure
+      .input(z.object({ contentId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.trackContentView(input.contentId, ctx.user?.id);
+        return { success: true };
+      }),
+
+    trackEventView: publicProcedure
+      .input(z.object({ eventId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.trackEventView(input.eventId, ctx.user?.id);
+        return { success: true };
+      }),
+  }),
+
   // Admin routes
   admin: router({
     // Conteúdos

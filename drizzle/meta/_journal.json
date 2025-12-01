@@ -22,6 +22,20 @@
       "when": 1764579027080,
       "tag": "0002_massive_victor_mancha",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1764581189678,
+      "tag": "0003_low_christian_walker",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1764581324840,
+      "tag": "0004_massive_pixie",
+      "breakpoints": true
     }
   ]
 }

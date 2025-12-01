@@ -14,7 +14,7 @@ import { toast } from "sonner";
 export default function Admin() {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState<"content" | "events">("content");
+  const [activeTab, setActiveTab] = useState<"content" | "events" | "analytics">("content");
 
   // Estados para formulários
   const [contentForm, setContentForm] = useState({
@@ -42,6 +42,11 @@ export default function Admin() {
 
   const { data: events, refetch: refetchEvents } = trpc.admin.listEvents.useQuery(undefined, {
     enabled: user?.role === "admin",
+  });
+
+  const { data: analytics, isLoading: loadingAnalytics } = trpc.analytics.getStats.useQuery(undefined, {
+    enabled: user?.role === "admin" && activeTab === "analytics",
+    refetchInterval: 30000, // Atualizar a cada 30 segundos
   });
 
   // Mutations - Conteúdos
@@ -230,6 +235,12 @@ export default function Admin() {
             onClick={() => setActiveTab("events")}
           >
             Eventos
+          </Button>
+          <Button
+            variant={activeTab === "analytics" ? "default" : "outline"}
+            onClick={() => setActiveTab("analytics")}
+          >
+            Analytics
           </Button>
         </div>
 
@@ -554,6 +565,121 @@ export default function Admin() {
                 </Card>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Analytics Tab */}
+        {activeTab === "analytics" && (
+          <div className="space-y-8">
+            {loadingAnalytics ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : analytics ? (
+              <>
+                {/* Métricas Principais */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardDescription>Total de Membros</CardDescription>
+                      <CardTitle className="text-3xl">{analytics.totalMembers}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardDescription>Membros Ativos (30 dias)</CardDescription>
+                      <CardTitle className="text-3xl">{analytics.activeMembers}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardDescription>Visualizações de Conteúdo</CardDescription>
+                      <CardTitle className="text-3xl">{analytics.totalContentViews}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardDescription>Visualizações de Eventos</CardDescription>
+                      <CardTitle className="text-3xl">{analytics.totalEventViews}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                </div>
+
+                {/* Conteúdos Mais Acessados */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Conteúdos Mais Acessados</CardTitle>
+                    <CardDescription>Top 5 conteúdos com mais visualizações</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {analytics.topContent && analytics.topContent.length > 0 ? (
+                      <div className="space-y-3">
+                        {analytics.topContent.map((item: any, index: number) => {
+                          const content = contents?.find((c: any) => c.id === item.contentId);
+                          return (
+                            <div key={item.contentId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl font-bold text-gray-400">#{index + 1}</span>
+                                <div>
+                                  <p className="font-medium">{content?.title || `Conteúdo #${item.contentId}`}</p>
+                                  <p className="text-sm text-gray-600">{content?.category}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-2xl font-bold text-primary">{item.views}</p>
+                                <p className="text-xs text-gray-600">visualizações</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-center text-gray-500 py-8">Nenhuma visualização registrada ainda</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Eventos Mais Visualizados */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Eventos Mais Visualizados</CardTitle>
+                    <CardDescription>Top 5 eventos com mais interesse</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {analytics.topEvents && analytics.topEvents.length > 0 ? (
+                      <div className="space-y-3">
+                        {analytics.topEvents.map((item: any, index: number) => {
+                          const event = events?.find((e: any) => e.id === item.eventId);
+                          return (
+                            <div key={item.eventId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl font-bold text-gray-400">#{index + 1}</span>
+                                <div>
+                                  <p className="font-medium">{event?.title || `Evento #${item.eventId}`}</p>
+                                  <p className="text-sm text-gray-600">{event?.location}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-2xl font-bold text-primary">{item.views}</p>
+                                <p className="text-xs text-gray-600">visualizações</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-center text-gray-500 py-8">Nenhuma visualização registrada ainda</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center text-gray-500">
+                  Erro ao carregar analytics
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </div>
