@@ -80,7 +80,7 @@ export default function Dashboard() {
     { 
       icon: Linkedin, 
       label: "LinkedIn", 
-      href: "https://linkedin.com/company/papayanews", 
+      href: "https://www.linkedin.com/company/papaya-news-ai/", 
       color: "bg-blue-600 hover:bg-blue-700",
       description: "Artigos profissionais e networking"
     },

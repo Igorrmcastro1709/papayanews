@@ -24,7 +24,7 @@ export default function Home() {
 
   const socialLinks = [
     { icon: Youtube, label: "YouTube", href: "https://youtube.com/@papayanews", color: "hover:text-red-600" },
-    { icon: Linkedin, label: "LinkedIn", href: "https://linkedin.com/company/papayanews", color: "hover:text-blue-600" },
+    { icon: Linkedin, label: "LinkedIn", href: "https://www.linkedin.com/company/papaya-news-ai/", color: "hover:text-blue-600" },
     { icon: Instagram, label: "Instagram", href: "https://instagram.com/papayanews", color: "hover:text-pink-600" },
     { icon: Mail, label: "Substack", href: "https://papayanews.substack.com", color: "hover:text-orange-600" },
   ];

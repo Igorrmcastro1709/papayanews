@@ -30,3 +30,6 @@
 - [x] Testar fluxo completo de autenticação
 - [x] Verificar responsividade em diferentes dispositivos
 - [x] Criar checkpoint para deploy
+
+## Atualizações
+- [x] Atualizar link do LinkedIn para https://www.linkedin.com/company/papaya-news-ai/
