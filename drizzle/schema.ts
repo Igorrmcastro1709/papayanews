@@ -224,4 +224,47 @@ export const forumUpvotes = mysqlTable("forum_upvotes", {
 export type ForumUpvote = typeof forumUpvotes.$inferSelect;
 export type InsertForumUpvote = typeof forumUpvotes.$inferInsert;
 
+// User Streaks (dias consecutivos de acesso)
+export const userStreaks = mysqlTable("user_streaks", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  currentStreak: int("currentStreak").default(0).notNull(),
+  longestStreak: int("longestStreak").default(0).notNull(),
+  lastAccessDate: timestamp("lastAccessDate"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserStreak = typeof userStreaks.$inferSelect;
+export type InsertUserStreak = typeof userStreaks.$inferInsert;
+
+// Weekly Challenges (desafios semanais)
+export const weeklyChallenges = mysqlTable("weekly_challenges", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  pointsReward: int("pointsReward").default(50).notNull(),
+  targetAction: varchar("targetAction", { length: 100 }).notNull(),
+  targetCount: int("targetCount").default(1).notNull(),
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate").notNull(),
+  isActive: int("isActive").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type WeeklyChallenge = typeof weeklyChallenges.$inferSelect;
+
+// User Challenge Progress
+export const userChallengeProgress = mysqlTable("user_challenge_progress", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  challengeId: int("challengeId").notNull(),
+  currentProgress: int("currentProgress").default(0).notNull(),
+  completed: int("completed").default(0).notNull(),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type UserChallengeProgress = typeof userChallengeProgress.$inferSelect;
+
 // TODO: Add your tables here

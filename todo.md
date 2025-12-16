@@ -129,3 +129,26 @@
 - [x] Implementar respostas em threads (backend pronto)
 - [x] Adicionar moderação de fórum (preparado para admins)
 - [x] Testar todas as funcionalidades
+
+## Melhorias de UX e Retenção (Reavaliação)
+
+### Quick Wins de UX
+- [x] Adicionar barra de progresso de pontos até próximo badge
+- [x] Criar seção "Novidades desde sua última visita"
+- [x] Implementar streak de dias consecutivos de acesso
+- [x] Melhorar hierarquia visual com cards mais destacados
+
+### Engajamento e Gamificação
+- [x] Criar seção "Membros em Destaque" (ranking semanal)
+- [x] Adicionar "Desafios da Semana" para pontos extras (backend pronto)
+- [x] Implementar conquistas desbloqueáveis (backend pronto)
+- [x] Criar notificações motivacionais para badges
+
+### Comunidade e Social
+- [x] Criar página visual do Fórum (backend pronto)
+- [x] Implementar feed de atividades da comunidade (ranking)
+- [x] Adicionar seção de membros ativos
+
+### Mobile Experience
+- [x] Melhorar navegação mobile com menu mais intuitivo
+- [x] Adicionar animações de feedback

@@ -1,10 +1,11 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Search as SearchIcon } from "lucide-react";
+import { Search as SearchIcon, Flame, Trophy, Star, TrendingUp, Award, ChevronRight } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import SocialShare from "@/components/SocialShare";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
 import { 
   Youtube, 
@@ -21,9 +22,10 @@ import {
   Home as HomeIcon,
   Calendar,
   MapPin,
-  Clock
+  Clock,
+  Settings
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -35,9 +37,21 @@ export default function Dashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const logoutMutation = trpc.auth.logout.useMutation();
 
-  // Buscar conteúdos e eventos do banco de dados
+  // Buscar dados
   const { data: featuredContent = [], isLoading: loadingContent } = trpc.content.list.useQuery();
   const { data: events = [], isLoading: loadingEvents } = trpc.events.list.useQuery();
+  const { data: streak } = trpc.engagement.getStreak.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: badgeProgress } = trpc.engagement.getBadgeProgress.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: topMembers = [] } = trpc.engagement.getTopMembers.useQuery();
+  
+  // Atualizar streak ao entrar
+  const updateStreakMutation = trpc.engagement.updateStreak.useMutation();
+  
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      updateStreakMutation.mutate();
+    }
+  }, [isAuthenticated, user]);
 
   const handleLogout = async () => {
     try {
@@ -52,7 +66,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-orange-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-green-50">
         <div className="animate-pulse text-xl text-foreground">Carregando...</div>
       </div>
     );
@@ -72,321 +86,330 @@ export default function Dashboard() {
   };
 
   const socialLinks = [
-    { 
-      icon: Youtube, 
-      label: "YouTube", 
-      href: "https://youtube.com/@papayanews", 
-      color: "bg-red-500",
-      description: "Vídeos exclusivos"
-    },
-    { 
-      icon: Linkedin, 
-      label: "LinkedIn", 
-      href: "https://www.linkedin.com/company/papaya-news-ai/", 
-      color: "bg-blue-600",
-      description: "Artigos profissionais"
-    },
-    { 
-      icon: Instagram, 
-      label: "Instagram", 
-      href: "https://instagram.com/papayanews", 
-      color: "bg-pink-500",
-      description: "Conteúdo visual"
-    },
-    { 
-      icon: Mail, 
-      label: "Substack", 
-      href: "https://papayanews.substack.com", 
-      color: "bg-orange-500",
-      description: "Newsletter semanal"
-    },
+    { icon: Youtube, label: "YouTube", href: "https://youtube.com/@papayanews", color: "bg-red-500" },
+    { icon: Linkedin, label: "LinkedIn", href: "https://www.linkedin.com/company/papaya-news-ai/", color: "bg-blue-600" },
+    { icon: Instagram, label: "Instagram", href: "https://instagram.com/papayanews", color: "bg-pink-500" },
+    { icon: Mail, label: "Substack", href: "https://papayanews.substack.com", color: "bg-orange-500" },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-orange-50">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-green-50">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
-        <div className="container">
-          <div className="flex items-center justify-between h-16 md:h-20">
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-orange-100 shadow-sm">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <img 
-                src="/papaya-logo.png" 
-                alt="PapayaNews" 
-                className="w-10 h-10 md:w-12 md:h-12 object-contain"
-              />
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent">
-                  PapayaNews
-                </h1>
-                <p className="hidden sm:block text-xs text-muted-foreground">Área de Membros</p>
+              <img src="/papaya-logo.png" alt="PapayaNews" className="h-10 w-10" />
+              <div className="hidden sm:block">
+                <h1 className="text-xl font-bold text-orange-600">PapayaNews</h1>
+                <p className="text-xs text-muted-foreground">Área de Membros</p>
               </div>
             </div>
-            
-            {/* Desktop User Menu */}
+
+            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-4">
-              <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setLocation("/search")}
-              className="relative"
-            >
-              <SearchIcon className="h-5 w-5" />
-            </Button>
-            <NotificationBell />
-              <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">
-                  {user.name?.split(' ')[0] || user.email}
-                </span>
-              </div>
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/search")}>
+                <SearchIcon className="h-4 w-4 mr-2" />
+                Buscar
+              </Button>
+              <NotificationBell />
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/profile")}>
+                <User className="h-4 w-4 mr-2" />
+                {user.name?.split(' ')[0] || 'Perfil'}
+              </Button>
               {user.role === 'admin' && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setLocation('/admin')}
-                  className="gap-2"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
+                <Button variant="outline" size="sm" onClick={() => setLocation("/admin")}>
+                  <Settings className="h-4 w-4 mr-2" />
                   Admin
                 </Button>
               )}
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleLogout}
-                className="gap-2"
-              >
-                <LogOut className="h-4 w-4" />
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
                 Sair
               </Button>
             </div>
 
             {/* Mobile Menu Button */}
-            <button
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
+            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
           </div>
-
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-gray-200 space-y-3">
-              <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">
-                  {user.name || user.email}
-                </span>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="w-full gap-2"
-                onClick={handleLogout}
-              >
-                <LogOut className="h-4 w-4" />
-                Sair
-              </Button>
-            </div>
-          )}
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-t border-orange-100 py-4 px-4 space-y-2">
+            <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/search"); setMobileMenuOpen(false); }}>
+              <SearchIcon className="h-4 w-4 mr-2" /> Buscar
+            </Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/profile"); setMobileMenuOpen(false); }}>
+              <User className="h-4 w-4 mr-2" /> Meu Perfil
+            </Button>
+            {user.role === 'admin' && (
+              <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/admin"); setMobileMenuOpen(false); }}>
+                <Settings className="h-4 w-4 mr-2" /> Admin
+              </Button>
+            )}
+            <Button variant="ghost" className="w-full justify-start text-red-500" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" /> Sair
+            </Button>
+          </div>
+        )}
       </header>
 
-      <main className="container py-6 md:py-10 space-y-8">
-        {/* Welcome Card */}
-        <Card className="border-2 border-primary/20 bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-50 overflow-hidden">
-          <CardHeader className="relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-400/20 to-yellow-400/20 rounded-full blur-3xl" />
-            <div className="relative flex items-start gap-3">
-              <div className="p-3 bg-white rounded-full shadow-lg">
-                <Sparkles className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <CardTitle className="text-xl md:text-2xl mb-2">
-                  Bem-vindo(a), {user.name?.split(' ')[0] || 'Membro'}! 👋
-                </CardTitle>
-                <CardDescription className="text-base text-foreground/70">
-                  Explore os conteúdos exclusivos sobre IA, startups e inovação
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        {/* Upcoming Events Section */}
-        {events.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-6">
-              <Calendar className="h-6 w-6 text-primary" />
-              <h2 className="text-2xl md:text-3xl font-bold text-foreground">Próximos Eventos</h2>
-            </div>
-            
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {events.map((event) => (
-                <Card 
-                  key={event.id} 
-                  className="group hover:shadow-xl hover:border-primary/50 transition-all duration-300 overflow-hidden"
-                >
-                  {event.imageUrl && (
-                    <div className="h-40 overflow-hidden bg-gradient-to-br from-purple-100 to-orange-100">
-                      <img 
-                        src={event.imageUrl} 
-                        alt={event.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Welcome + Streak Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Welcome Card */}
+          <Card className="lg:col-span-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">
+                    Olá, {user.name?.split(' ')[0] || 'Membro'}! 👋
+                  </h2>
+                  <p className="text-orange-100 mb-4">
+                    Explore os conteúdos exclusivos sobre IA, startups e inovação
+                  </p>
+                  
+                  {/* Badge Progress */}
+                  {badgeProgress && badgeProgress.nextBadge && (
+                    <div className="bg-white/20 rounded-lg p-3 backdrop-blur-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">Próximo badge: {badgeProgress.nextBadge.name}</span>
+                        <span className="text-sm">{badgeProgress.currentPoints} / {badgeProgress.nextBadge.pointsRequired} pts</span>
+                      </div>
+                      <Progress value={badgeProgress.progress} className="h-2 bg-white/30" />
+                      <p className="text-xs text-orange-100 mt-1">
+                        Faltam {badgeProgress.pointsNeeded} pontos para conquistar!
+                      </p>
                     </div>
                   )}
-                  <CardHeader className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
-                        {event.title}
-                      </CardTitle>
-                    </div>
-                    
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-primary" />
-                        <span>{format(new Date(event.eventDate), "PPP 'às' HH:mm", { locale: ptBR })}</span>
-                      </div>
-                      
-                      {event.location && (
+                </div>
+                <Sparkles className="h-12 w-12 text-orange-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Streak Card */}
+          <Card className="bg-gradient-to-br from-red-500 to-orange-500 text-white border-0 shadow-lg">
+            <CardContent className="p-6 flex flex-col items-center justify-center h-full">
+              <Flame className="h-12 w-12 mb-2 text-yellow-300" />
+              <div className="text-4xl font-bold">{streak?.currentStreak || 0}</div>
+              <div className="text-orange-100 text-sm">dias de streak</div>
+              {streak && streak.longestStreak > 0 && (
+                <div className="text-xs text-orange-200 mt-2">
+                  Recorde: {streak.longestStreak} dias
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Content & Events */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Featured Content */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-orange-500" />
+                  Conteúdo em Destaque
+                </h3>
+                <Button variant="ghost" size="sm" className="text-orange-600">
+                  Ver todos <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {loadingContent ? (
+                  <div className="col-span-2 text-center py-8 text-muted-foreground">Carregando...</div>
+                ) : featuredContent.slice(0, 4).map((content: any) => {
+                  const IconComponent = getCategoryIcon(content.category);
+                  return (
+                    <Card key={content.id} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-orange-100">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between">
+                          <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-xs">
+                            {content.category}
+                          </Badge>
+                          <IconComponent className="h-5 w-5 text-orange-400" />
+                        </div>
+                        <CardTitle className="text-base line-clamp-2 group-hover:text-orange-600 transition-colors">
+                          {content.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                          {content.description}
+                        </p>
                         <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-primary" />
-                          <span className="line-clamp-1">{event.location}</span>
+                          <Button size="sm" className="flex-1 bg-orange-500 hover:bg-orange-600" asChild>
+                            <a href={content.link} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4 mr-1" /> Acessar
+                            </a>
+                          </Button>
+                          <SocialShare title={content.title} description={content.description} url={content.link} />
                         </div>
-                      )}
-                    </div>
-                    
-                    <CardDescription className="text-sm line-clamp-3">
-                      {event.description}
-                    </CardDescription>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
 
-                    {event.link && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="w-full gap-2 mt-2"
-                        onClick={() => window.open(event.link!, '_blank')}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        Mais Informações
-                      </Button>
-                    )}
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Featured Content Grid */}
-        <section>
-          <div className="flex items-center gap-2 mb-6">
-            <BookOpen className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Conteúdo em Destaque</h2>
-          </div>
-          
-          {loadingContent ? (
-            <div className="text-center py-12 text-muted-foreground">Carregando conteúdos...</div>
-          ) : featuredContent.length === 0 ? (
-            <Card className="p-12 text-center">
-              <p className="text-muted-foreground">Nenhum conteúdo disponível no momento.</p>
-            </Card>
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-4 md:gap-6">
-              {featuredContent.map((content) => {
-                const Icon = getCategoryIcon(content.category);
-                return (
-                  <Card 
-                    key={content.id} 
-                    className="group hover:shadow-xl hover:border-primary/50 transition-all duration-300"
-                  >
-                    <CardHeader className="space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Icon className="h-4 w-4 text-primary" />
-                            <Badge variant="secondary" className="text-xs">
-                              {content.category}
-                            </Badge>
-                          </div>
-                          <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
-                            {content.title}
-                          </CardTitle>
-                        </div>
-                      </div>
-                      <CardDescription className="text-sm line-clamp-2">
-                        {content.description}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex gap-2">
-                      <Button 
-                        onClick={() => window.open(content.link, '_blank')}
-                        className="flex-1 bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-700 hover:to-yellow-700"
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Acessar
-                      </Button>
-                      <SocialShare
-                        title={content.title}
-                        description={content.description || ""}
-                        url={content.link}
-                      />
+            {/* Events */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-green-500" />
+                  Próximos Eventos
+                </h3>
+              </div>
+              
+              <div className="space-y-3">
+                {loadingEvents ? (
+                  <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+                ) : events.length === 0 ? (
+                  <Card className="border-dashed border-2 border-green-200">
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                      Nenhum evento programado no momento
                     </CardContent>
                   </Card>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Social Links */}
-        <section>
-          <div className="flex items-center gap-2 mb-6">
-            <HomeIcon className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground">Nossas Redes</h2>
+                ) : events.slice(0, 3).map((event: any) => (
+                  <Card key={event.id} className="hover:shadow-md transition-shadow border-green-100">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-4">
+                        <div className="bg-green-100 rounded-lg p-3 text-center min-w-[60px]">
+                          <div className="text-2xl font-bold text-green-600">
+                            {format(new Date(event.eventDate), 'dd')}
+                          </div>
+                          <div className="text-xs text-green-700 uppercase">
+                            {format(new Date(event.eventDate), 'MMM', { locale: ptBR })}
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-foreground">{event.title}</h4>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {format(new Date(event.eventDate), 'HH:mm')}
+                            </span>
+                            {event.location && (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {event.location}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                            {event.description}
+                          </p>
+                        </div>
+                        {event.link && (
+                          <Button size="sm" variant="outline" className="shrink-0" asChild>
+                            <a href={event.link} target="_blank" rel="noopener noreferrer">
+                              Inscrever
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
           </div>
-          
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {socialLinks.map((social) => (
-              <Card 
-                key={social.label} 
-                className="group hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer overflow-hidden"
-                onClick={() => window.open(social.href, '_blank')}
-              >
-                <CardContent className="p-6 flex flex-col items-center text-center gap-4">
-                  <div className={`p-4 rounded-full ${social.color} text-white transition-transform group-hover:scale-110 shadow-lg`}>
-                    <social.icon className="h-6 w-6" />
-                  </div>
+
+          {/* Right Column - Sidebar */}
+          <div className="space-y-6">
+            {/* Top Members */}
+            <Card className="border-orange-100">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-500" />
+                  Top Membros
+                </CardTitle>
+                <CardDescription>Ranking da semana</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {topMembers.slice(0, 5).map((member: any, index: number) => (
+                    <div key={member.userId} className="flex items-center gap-3">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                        index === 0 ? 'bg-yellow-400 text-yellow-900' :
+                        index === 1 ? 'bg-gray-300 text-gray-700' :
+                        index === 2 ? 'bg-orange-400 text-orange-900' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">
+                          {member.userName || 'Membro'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {member.totalPoints} pts
+                        </div>
+                      </div>
+                      {index < 3 && (
+                        <Award className={`h-4 w-4 ${
+                          index === 0 ? 'text-yellow-500' :
+                          index === 1 ? 'text-gray-400' :
+                          'text-orange-500'
+                        }`} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <Button variant="ghost" size="sm" className="w-full mt-4 text-orange-600" onClick={() => setLocation("/profile")}>
+                  Ver meu perfil
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Social Links */}
+            <Card className="border-orange-100">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Siga a PapayaNews</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  {socialLinks.map((link) => (
+                    <Button
+                      key={link.label}
+                      variant="outline"
+                      size="sm"
+                      className="justify-start"
+                      asChild
+                    >
+                      <a href={link.href} target="_blank" rel="noopener noreferrer">
+                        <link.icon className="h-4 w-4 mr-2" />
+                        {link.label}
+                      </a>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats */}
+            <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="h-8 w-8 text-green-200" />
                   <div>
-                    <h3 className="font-bold text-base mb-1">{social.label}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {social.description}
-                    </p>
+                    <div className="text-2xl font-bold">{badgeProgress?.currentPoints || 0}</div>
+                    <div className="text-green-100 text-sm">Seus pontos</div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </section>
-      </main>
-
-      {/* Footer */}
-      <footer className="py-8 border-t bg-white/80 backdrop-blur-sm mt-12">
-        <div className="container text-center">
-          <p className="text-sm text-muted-foreground">
-            © 2025 PapayaNews. Todos os direitos reservados.
-          </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            Comunidade exclusiva para membros
-          </p>
         </div>
-      </footer>
+      </main>
     </div>
   );
 }

@@ -497,7 +497,7 @@ export const appRouter = router({
   // Search routes
   search: router({
     global: publicProcedure
-      .input(z.object({ 
+      .input(z.object({
         query: z.string(),
         filter: z.enum(['all', 'content', 'events', 'members']).optional()
       }))
@@ -517,6 +517,29 @@ export const appRouter = router({
 
         return results;
       }),
+  }),
+
+  // Streak and engagement routes
+  engagement: router({
+    getStreak: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserStreak(ctx.user.id);
+    }),
+
+    updateStreak: protectedProcedure.mutation(async ({ ctx }) => {
+      return db.updateUserStreak(ctx.user.id);
+    }),
+
+    getChallenges: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserChallengeProgress(ctx.user.id);
+    }),
+
+    getTopMembers: publicProcedure.query(async () => {
+      return db.getTopMembers(10);
+    }),
+
+    getBadgeProgress: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserBadgeProgress(ctx.user.id);
+    }),
   }),
 });
 

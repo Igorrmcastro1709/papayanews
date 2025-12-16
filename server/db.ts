@@ -1,6 +1,6 @@
 import { eq, and, gte, count, sql, desc, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
 import { sendVerificationEmail as sendVerificationEmailResend } from './_core/email';
@@ -898,6 +898,213 @@ export async function getUserUpvotes(userId: number) {
   return {
     threadIds: upvotes.filter(u => u.threadId).map(u => u.threadId!),
     replyIds: upvotes.filter(u => u.replyId).map(u => u.replyId!),
+  };
+}
+
+// Streak functions
+export async function updateUserStreak(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // Get current streak
+  const existing = await db.select().from(userStreaks).where(eq(userStreaks.userId, userId)).limit(1);
+
+  if (existing.length === 0) {
+    // First access - create streak
+    await db.insert(userStreaks).values({
+      userId,
+      currentStreak: 1,
+      longestStreak: 1,
+      lastAccessDate: today,
+    });
+    return { currentStreak: 1, longestStreak: 1, isNewDay: true };
+  }
+
+  const streak = existing[0];
+  const lastAccess = streak.lastAccessDate ? new Date(streak.lastAccessDate) : null;
+  
+  if (lastAccess) {
+    lastAccess.setHours(0, 0, 0, 0);
+    
+    // Same day - no update needed
+    if (lastAccess.getTime() === today.getTime()) {
+      return { currentStreak: streak.currentStreak, longestStreak: streak.longestStreak, isNewDay: false };
+    }
+    
+    // Yesterday - continue streak
+    if (lastAccess.getTime() === yesterday.getTime()) {
+      const newStreak = streak.currentStreak + 1;
+      const newLongest = Math.max(newStreak, streak.longestStreak);
+      
+      await db.update(userStreaks)
+        .set({ currentStreak: newStreak, longestStreak: newLongest, lastAccessDate: today })
+        .where(eq(userStreaks.userId, userId));
+      
+      // Bonus points for streak
+      if (newStreak % 7 === 0) {
+        await addPoints(userId, 50, 'streak_bonus', `Bônus de ${newStreak} dias de streak!`);
+      }
+      
+      return { currentStreak: newStreak, longestStreak: newLongest, isNewDay: true };
+    }
+  }
+  
+  // Streak broken - reset to 1
+  await db.update(userStreaks)
+    .set({ currentStreak: 1, lastAccessDate: today })
+    .where(eq(userStreaks.userId, userId));
+  
+  return { currentStreak: 1, longestStreak: streak.longestStreak, isNewDay: true };
+}
+
+export async function getUserStreak(userId: number) {
+  const db = await getDb();
+  if (!db) return { currentStreak: 0, longestStreak: 0 };
+
+  const result = await db.select().from(userStreaks).where(eq(userStreaks.userId, userId)).limit(1);
+  
+  if (result.length === 0) {
+    return { currentStreak: 0, longestStreak: 0 };
+  }
+  
+  return { currentStreak: result[0].currentStreak, longestStreak: result[0].longestStreak };
+}
+
+// Weekly challenges functions
+export async function getActiveChallenges() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const now = new Date();
+  
+  return db.select()
+    .from(weeklyChallenges)
+    .where(and(
+      eq(weeklyChallenges.isActive, 1),
+      gte(weeklyChallenges.endDate, now)
+    ));
+}
+
+export async function getUserChallengeProgress(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const challenges = await getActiveChallenges();
+  const progress = await db.select()
+    .from(userChallengeProgress)
+    .where(eq(userChallengeProgress.userId, userId));
+
+  return challenges.map(challenge => {
+    const userProgress = progress.find(p => p.challengeId === challenge.id);
+    return {
+      ...challenge,
+      currentProgress: userProgress?.currentProgress || 0,
+      completed: userProgress?.completed === 1,
+    };
+  });
+}
+
+export async function updateChallengeProgress(userId: number, action: string) {
+  const db = await getDb();
+  if (!db) return;
+
+  const challenges = await getActiveChallenges();
+  const relevantChallenges = challenges.filter(c => c.targetAction === action);
+
+  for (const challenge of relevantChallenges) {
+    const existing = await db.select()
+      .from(userChallengeProgress)
+      .where(and(
+        eq(userChallengeProgress.userId, userId),
+        eq(userChallengeProgress.challengeId, challenge.id)
+      ))
+      .limit(1);
+
+    if (existing.length === 0) {
+      // Create progress
+      const completed = 1 >= challenge.targetCount ? 1 : 0;
+      await db.insert(userChallengeProgress).values({
+        userId,
+        challengeId: challenge.id,
+        currentProgress: 1,
+        completed,
+        completedAt: completed ? new Date() : undefined,
+      });
+      
+      if (completed) {
+        await addPoints(userId, challenge.pointsReward, 'challenge_complete', `Desafio concluído: ${challenge.title}`);
+      }
+    } else if (existing[0].completed === 0) {
+      const newProgress = existing[0].currentProgress + 1;
+      const completed = newProgress >= challenge.targetCount ? 1 : 0;
+      
+      await db.update(userChallengeProgress)
+        .set({
+          currentProgress: newProgress,
+          completed,
+          completedAt: completed ? new Date() : undefined,
+        })
+        .where(eq(userChallengeProgress.id, existing[0].id));
+      
+      if (completed) {
+        await addPoints(userId, challenge.pointsReward, 'challenge_complete', `Desafio concluído: ${challenge.title}`);
+      }
+    }
+  }
+}
+
+// Get top members for ranking
+export async function getTopMembers(limit: number = 10) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select({
+    userId: userPoints.userId,
+    totalPoints: userPoints.totalPoints,
+    level: userPoints.level,
+    userName: users.name,
+    userEmail: users.email,
+  })
+    .from(userPoints)
+    .leftJoin(users, eq(userPoints.userId, users.id))
+    .orderBy(desc(userPoints.totalPoints))
+    .limit(limit);
+}
+
+// Get user progress to next badge
+export async function getUserBadgeProgress(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const userPointsData = await db.select().from(userPoints).where(eq(userPoints.userId, userId)).limit(1);
+  const currentPoints = userPointsData[0]?.totalPoints || 0;
+
+  const allBadges = await db.select().from(badges).orderBy(badges.pointsRequired);
+  const earnedBadges = await db.select().from(userBadges).where(eq(userBadges.userId, userId));
+  const earnedBadgeIds = earnedBadges.map(b => b.badgeId);
+
+  const nextBadge = allBadges.find(b => !earnedBadgeIds.includes(b.id) && b.pointsRequired > currentPoints);
+  
+  if (!nextBadge) {
+    return { currentPoints, nextBadge: null, pointsNeeded: 0, progress: 100 };
+  }
+
+  const previousBadge = allBadges.filter(b => b.pointsRequired <= currentPoints).pop();
+  const basePoints = previousBadge?.pointsRequired || 0;
+  const pointsNeeded = nextBadge.pointsRequired - currentPoints;
+  const progress = Math.round(((currentPoints - basePoints) / (nextBadge.pointsRequired - basePoints)) * 100);
+
+  return {
+    currentPoints,
+    nextBadge,
+    pointsNeeded,
+    progress: Math.min(progress, 100),
   };
 }
 
