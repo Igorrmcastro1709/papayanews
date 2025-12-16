@@ -266,7 +266,7 @@ export default function Home() {
           <Card className="border-2 shadow-2xl">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl md:text-3xl">
-                {signupStep === "form" ? "Cadastre-se Agora" : "Verifique seu Email"}
+                {signupStep === "form" ? "Cadastre-se na Comunidade PapayaNews" : "Verifique seu Email"}
               </CardTitle>
               <CardDescription className="text-base">
                 {signupStep === "form" 

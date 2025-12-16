@@ -177,3 +177,10 @@
 
 ### Testes
 - [x] Testar todas as novas funcionalidades
+
+## Correções de SEO
+- [x] Adicionar título H1 na página inicial
+- [x] Adicionar títulos H2 nas seções
+- [x] Configurar meta title (30-60 caracteres)
+- [x] Configurar meta description (50-160 caracteres)
+- [x] Adicionar palavras-chave relevantes (IA, startups, inovação, comunidade)
