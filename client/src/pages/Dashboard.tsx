@@ -29,12 +29,14 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import Onboarding, { useOnboarding } from "@/components/Onboarding";
 import { ptBR } from "date-fns/locale";
 
 export default function Dashboard() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { showOnboarding, completeOnboarding } = useOnboarding();
   const logoutMutation = trpc.auth.logout.useMutation();
 
   // Buscar dados
@@ -94,6 +96,11 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-green-50">
+      {/* Onboarding */}
+      {showOnboarding && (
+        <Onboarding onComplete={completeOnboarding} userName={user.name?.split(' ')[0]} />
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-orange-100 shadow-sm">
         <div className="container mx-auto px-4">

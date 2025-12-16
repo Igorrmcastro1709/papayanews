@@ -152,3 +152,28 @@
 ### Mobile Experience
 - [x] Melhorar navegação mobile com menu mais intuitivo
 - [x] Adicionar animações de feedback
+
+## Novas Funcionalidades - Desafios, Onboarding, Fórum e LinkedIn
+
+### Página de Desafios
+- [x] Criar página /challenges com lista de desafios ativos
+- [x] Implementar progresso visual de cada desafio
+- [x] Adicionar recompensas e pontos por desafio completado
+
+### Onboarding Interativo
+- [x] Criar componente de tour guiado para novos membros
+- [x] Explicar sistema de pontos, badges e streak
+- [x] Adicionar dicas de como engajar na comunidade
+
+### Página Visual do Fórum
+- [x] Criar página /forum com lista de threads
+- [x] Implementar criação de novas discussões
+- [x] Adicionar sistema de respostas e upvotes
+
+### Cadastro com LinkedIn
+- [x] Adicionar botão de login com LinkedIn na landing page
+- [x] Integrar OAuth do LinkedIn (via Manus OAuth)
+- [ ] Permitir importar dados do perfil LinkedIn
+
+### Testes
+- [x] Testar todas as novas funcionalidades

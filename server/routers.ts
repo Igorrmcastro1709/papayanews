@@ -519,6 +519,76 @@ export const appRouter = router({
       }),
   }),
 
+  // Forum routes
+  forum: router({
+    listThreads: protectedProcedure.query(async () => {
+      const threads = await db.getForumThreads();
+      // Adicionar contagem de respostas
+      const threadsWithReplies = await Promise.all(
+        threads.map(async (thread: any) => {
+          const replies = await db.getForumReplies(thread.id);
+          return {
+            ...thread,
+            authorName: thread.userName,
+            replyCount: replies.length,
+          };
+        })
+      );
+      return threadsWithReplies;
+    }),
+
+    getThread: protectedProcedure
+      .input(z.object({ threadId: z.number() }))
+      .query(async ({ input }) => {
+        const thread = await db.getForumThread(input.threadId);
+        if (!thread) return null;
+        const replies = await db.getForumReplies(input.threadId);
+        return {
+          ...thread,
+          authorName: thread.userName,
+          replies: replies.map((r: any) => ({ ...r, authorName: r.userName })),
+        };
+      }),
+
+    createThread: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        content: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await db.createForumThread({
+          userId: ctx.user.id,
+          title: input.title,
+          content: input.content,
+          category: 'geral',
+        });
+        return { success: true };
+      }),
+
+    createReply: protectedProcedure
+      .input(z.object({
+        threadId: z.number(),
+        content: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await db.createForumReply({
+          threadId: input.threadId,
+          userId: ctx.user.id,
+          content: input.content,
+        });
+        // Adicionar pontos por responder
+        await db.addPoints(ctx.user.id, 10, 'forum_reply', 'Respondeu no fórum');
+        return { success: true };
+      }),
+
+    upvoteThread: protectedProcedure
+      .input(z.object({ threadId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await db.toggleUpvote({ userId: ctx.user.id, threadId: input.threadId });
+        return { success: true };
+      }),
+  }),
+
   // Streak and engagement routes
   engagement: router({
     getStreak: protectedProcedure.query(async ({ ctx }) => {
