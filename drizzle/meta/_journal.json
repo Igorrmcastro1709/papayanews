@@ -85,6 +85,13 @@
       "when": 1766525512664,
       "tag": "0011_glorious_wraith",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1766527919177,
+      "tag": "0012_free_maggott",
+      "breakpoints": true
     }
   ]
 }

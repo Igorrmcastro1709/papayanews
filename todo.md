@@ -216,3 +216,12 @@
 - [x] Implementar resumo diário automático de notícias/conversas
 - [x] Atualizar interface do chat com preview de arquivos
 - [x] Testar todas as funcionalidades
+
+## Área de Perfis e Conexões (Networking)
+- [x] Atualizar schema do banco para perfis estendidos e conexões
+- [x] Implementar upload de foto/avatar do usuário
+- [x] Criar página de perfil do usuário com bio, links e badges
+- [x] Criar diretório de membros com filtros e busca
+- [x] Implementar sistema de conexões (solicitar, aceitar, recusar)
+- [x] Adicionar navegação para perfis e diretório
+- [x] Testar todas as funcionalidades

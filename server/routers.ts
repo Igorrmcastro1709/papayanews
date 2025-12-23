@@ -288,7 +288,7 @@ export const appRouter = router({
   // Gamification routes
   gamification: router({
     getProfile: protectedProcedure.query(async ({ ctx }) => {
-      return db.getUserProfile(ctx.user.id);
+      return db.getUserGamificationProfile(ctx.user.id);
     }),
 
     getLeaderboard: publicProcedure.query(async () => {
@@ -968,6 +968,133 @@ Formato: Use emojis, seja breve e objetivo. Máximo 300 palavras.`;
       .input(z.object({ limit: z.number().default(7) }).optional())
       .query(async ({ input }) => {
         return db.getRecentDailySummaries(input?.limit || 7);
+      }),
+  }),
+
+  // User Profiles & Connections
+  profile: router({
+    // Obter perfil do usuário atual
+    getMyProfile: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserProfileWithUser(ctx.user.id);
+    }),
+
+    // Obter perfil de outro usuário
+    getUserProfile: publicProcedure
+      .input(z.object({ userId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getUserProfileWithUser(input.userId);
+      }),
+
+    // Atualizar perfil
+    updateProfile: protectedProcedure
+      .input(z.object({
+        bio: z.string().max(500).optional(),
+        headline: z.string().max(255).optional(),
+        company: z.string().max(255).optional(),
+        position: z.string().max(255).optional(),
+        location: z.string().max(255).optional(),
+        linkedinUrl: z.string().url().optional().or(z.literal('')),
+        githubUrl: z.string().url().optional().or(z.literal('')),
+        websiteUrl: z.string().url().optional().or(z.literal('')),
+        interests: z.array(z.string()).optional(),
+        isPublic: z.boolean().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const data = {
+          ...input,
+          interests: input.interests ? JSON.stringify(input.interests) : undefined,
+          isPublic: input.isPublic !== undefined ? (input.isPublic ? 1 : 0) : undefined,
+          linkedinUrl: input.linkedinUrl || null,
+          githubUrl: input.githubUrl || null,
+          websiteUrl: input.websiteUrl || null,
+        };
+        return db.createOrUpdateProfile(ctx.user.id, data);
+      }),
+
+    // Upload de avatar
+    uploadAvatar: protectedProcedure
+      .input(z.object({
+        imageData: z.string(), // Base64 encoded
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { storagePut } = await import('./storage');
+        
+        const timestamp = Date.now();
+        const extension = input.mimeType.split('/')[1] || 'png';
+        const avatarKey = `avatars/${ctx.user.id}/${timestamp}.${extension}`;
+        
+        const imageBuffer = Buffer.from(input.imageData, 'base64');
+        const { url } = await storagePut(avatarKey, imageBuffer, input.mimeType);
+        
+        await db.createOrUpdateProfile(ctx.user.id, {
+          avatarUrl: url,
+          avatarKey: avatarKey,
+        });
+        
+        return { success: true, avatarUrl: url };
+      }),
+
+    // Listar membros (diretório)
+    listMembers: publicProcedure
+      .input(z.object({
+        limit: z.number().default(50),
+        offset: z.number().default(0),
+        search: z.string().optional(),
+        interests: z.array(z.string()).optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return db.getAllPublicProfiles(input || {});
+      }),
+  }),
+
+  // Conexões entre usuários
+  connections: router({
+    // Enviar solicitação de conexão
+    sendRequest: protectedProcedure
+      .input(z.object({
+        receiverId: z.number(),
+        message: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.receiverId === ctx.user.id) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Você não pode se conectar consigo mesmo' });
+        }
+        return db.sendConnectionRequest(ctx.user.id, input.receiverId, input.message);
+      }),
+
+    // Responder solicitação
+    respondToRequest: protectedProcedure
+      .input(z.object({
+        connectionId: z.number(),
+        accept: z.boolean(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        return db.respondToConnectionRequest(input.connectionId, ctx.user.id, input.accept);
+      }),
+
+    // Listar conexões
+    getMyConnections: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserConnections(ctx.user.id);
+    }),
+
+    // Solicitações pendentes
+    getPendingRequests: protectedProcedure.query(async ({ ctx }) => {
+      return db.getPendingConnectionRequests(ctx.user.id);
+    }),
+
+    // Status da conexão com outro usuário
+    getConnectionStatus: protectedProcedure
+      .input(z.object({ userId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        return db.getConnectionStatus(ctx.user.id, input.userId);
+      }),
+
+    // Remover conexão
+    removeConnection: protectedProcedure
+      .input(z.object({ connectionId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        return db.removeConnection(input.connectionId, ctx.user.id);
       }),
   }),
 });

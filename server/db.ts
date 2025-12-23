@@ -1,6 +1,6 @@
 import { eq, and, gte, count, sql, desc, or, lte, between } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress, chatMessages, InsertChatMessage, chatAttachments, InsertChatAttachment, dailySummaries, InsertDailySummary } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress, chatMessages, InsertChatMessage, chatAttachments, InsertChatAttachment, dailySummaries, InsertDailySummary, userProfiles, InsertUserProfile, userConnections, InsertUserConnection } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
 import { sendVerificationEmail as sendVerificationEmailResend } from './_core/email';
@@ -504,7 +504,7 @@ export async function checkAndAwardBadges(userId: number) {
   }
 }
 
-export async function getUserProfile(userId: number) {
+export async function getUserGamificationProfile(userId: number) {
   const db = await getDb();
   if (!db) return null;
 
@@ -1283,6 +1283,341 @@ export async function getMessagesForDateRange(startDate: Date, endDate: Date) {
     .from(chatMessages)
     .where(between(chatMessages.createdAt, startDate, endDate))
     .orderBy(chatMessages.createdAt);
+}
+
+// ==================== User Profiles ====================
+
+export async function getUserProfile(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const profiles = await db
+    .select()
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, userId))
+    .limit(1);
+
+  return profiles[0] || null;
+}
+
+export async function getUserProfileWithUser(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select({
+      profile: userProfiles,
+      user: users,
+    })
+    .from(users)
+    .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!result[0]) return null;
+
+  return {
+    ...result[0].user,
+    profile: result[0].profile,
+  };
+}
+
+export async function createOrUpdateProfile(userId: number, data: Partial<InsertUserProfile>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existingProfile = await getUserProfile(userId);
+
+  if (existingProfile) {
+    await db
+      .update(userProfiles)
+      .set(data)
+      .where(eq(userProfiles.userId, userId));
+  } else {
+    await db.insert(userProfiles).values({
+      userId,
+      ...data,
+    });
+  }
+
+  return await getUserProfile(userId);
+}
+
+export async function getAllPublicProfiles(options: { limit?: number; offset?: number; search?: string; interests?: string[] } = {}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const { limit = 50, offset = 0, search, interests } = options;
+
+  let query = db
+    .select({
+      user: users,
+      profile: userProfiles,
+      points: userPoints,
+    })
+    .from(users)
+    .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+    .leftJoin(userPoints, eq(users.id, userPoints.userId))
+    .where(
+      or(
+        eq(userProfiles.isPublic, 1),
+        sql`${userProfiles.isPublic} IS NULL`
+      )
+    )
+    .orderBy(desc(users.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  const results = await query;
+
+  // Filtrar por busca e interesses no lado do servidor
+  let filtered = results.map(r => ({
+    id: r.user.id,
+    name: r.user.name,
+    email: r.user.email,
+    createdAt: r.user.createdAt,
+    profile: r.profile,
+    totalPoints: r.points?.totalPoints || 0,
+    level: r.points?.level || 1,
+  }));
+
+  if (search) {
+    const searchLower = search.toLowerCase();
+    filtered = filtered.filter(u => 
+      u.name?.toLowerCase().includes(searchLower) ||
+      u.profile?.headline?.toLowerCase().includes(searchLower) ||
+      u.profile?.company?.toLowerCase().includes(searchLower)
+    );
+  }
+
+  if (interests && interests.length > 0) {
+    filtered = filtered.filter(u => {
+      if (!u.profile?.interests) return false;
+      try {
+        const userInterests = JSON.parse(u.profile.interests) as string[];
+        return interests.some(i => userInterests.includes(i));
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  return filtered;
+}
+
+// ==================== User Connections ====================
+
+export async function sendConnectionRequest(requesterId: number, receiverId: number, message?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Verificar se já existe uma conexão
+  const existing = await db
+    .select()
+    .from(userConnections)
+    .where(
+      or(
+        and(
+          eq(userConnections.requesterId, requesterId),
+          eq(userConnections.receiverId, receiverId)
+        ),
+        and(
+          eq(userConnections.requesterId, receiverId),
+          eq(userConnections.receiverId, requesterId)
+        )
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    throw new Error("Já existe uma solicitação de conexão entre esses usuários");
+  }
+
+  await db.insert(userConnections).values({
+    requesterId,
+    receiverId,
+    message,
+    status: "pending",
+  });
+
+  return true;
+}
+
+export async function respondToConnectionRequest(connectionId: number, userId: number, accept: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Verificar se o usuário é o receiver da solicitação
+  const connection = await db
+    .select()
+    .from(userConnections)
+    .where(
+      and(
+        eq(userConnections.id, connectionId),
+        eq(userConnections.receiverId, userId)
+      )
+    )
+    .limit(1);
+
+  if (!connection[0]) {
+    throw new Error("Solicitação de conexão não encontrada");
+  }
+
+  await db
+    .update(userConnections)
+    .set({ status: accept ? "accepted" : "rejected" })
+    .where(eq(userConnections.id, connectionId));
+
+  return true;
+}
+
+export async function getUserConnections(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Buscar conexões aceitas onde o usuário é requester ou receiver
+  const connections = await db
+    .select()
+    .from(userConnections)
+    .where(
+      and(
+        eq(userConnections.status, "accepted"),
+        or(
+          eq(userConnections.requesterId, userId),
+          eq(userConnections.receiverId, userId)
+        )
+      )
+    );
+
+  // Buscar dados dos usuários conectados
+  const connectedUserIds = connections.map(c => 
+    c.requesterId === userId ? c.receiverId : c.requesterId
+  );
+
+  if (connectedUserIds.length === 0) return [];
+
+  const connectedUsers = await db
+    .select({
+      user: users,
+      profile: userProfiles,
+    })
+    .from(users)
+    .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+    .where(sql`${users.id} IN (${sql.join(connectedUserIds.map(id => sql`${id}`), sql`, `)})`);
+
+  return connectedUsers.map(u => ({
+    id: u.user.id,
+    name: u.user.name,
+    email: u.user.email,
+    profile: u.profile,
+    connectionId: connections.find(c => 
+      c.requesterId === u.user.id || c.receiverId === u.user.id
+    )?.id,
+  }));
+}
+
+export async function getPendingConnectionRequests(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Solicitações recebidas pendentes
+  const requests = await db
+    .select()
+    .from(userConnections)
+    .where(
+      and(
+        eq(userConnections.receiverId, userId),
+        eq(userConnections.status, "pending")
+      )
+    );
+
+  if (requests.length === 0) return [];
+
+  const requesterIds = requests.map(r => r.requesterId);
+
+  const requesters = await db
+    .select({
+      user: users,
+      profile: userProfiles,
+    })
+    .from(users)
+    .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+    .where(sql`${users.id} IN (${sql.join(requesterIds.map(id => sql`${id}`), sql`, `)})`);
+
+  return requests.map(r => {
+    const requester = requesters.find(u => u.user.id === r.requesterId);
+    return {
+      connectionId: r.id,
+      message: r.message,
+      createdAt: r.createdAt,
+      requester: requester ? {
+        id: requester.user.id,
+        name: requester.user.name,
+        email: requester.user.email,
+        profile: requester.profile,
+      } : null,
+    };
+  });
+}
+
+export async function getConnectionStatus(userId1: number, userId2: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const connection = await db
+    .select()
+    .from(userConnections)
+    .where(
+      or(
+        and(
+          eq(userConnections.requesterId, userId1),
+          eq(userConnections.receiverId, userId2)
+        ),
+        and(
+          eq(userConnections.requesterId, userId2),
+          eq(userConnections.receiverId, userId1)
+        )
+      )
+    )
+    .limit(1);
+
+  if (!connection[0]) return null;
+
+  return {
+    id: connection[0].id,
+    status: connection[0].status,
+    isRequester: connection[0].requesterId === userId1,
+  };
+}
+
+export async function removeConnection(connectionId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Verificar se o usuário faz parte da conexão
+  const connection = await db
+    .select()
+    .from(userConnections)
+    .where(
+      and(
+        eq(userConnections.id, connectionId),
+        or(
+          eq(userConnections.requesterId, userId),
+          eq(userConnections.receiverId, userId)
+        )
+      )
+    )
+    .limit(1);
+
+  if (!connection[0]) {
+    throw new Error("Conexão não encontrada");
+  }
+
+  await db
+    .delete(userConnections)
+    .where(eq(userConnections.id, connectionId));
+
+  return true;
 }
 
 // TODO: add feature queries here as your schema grows.

@@ -308,4 +308,41 @@ export const dailySummaries = mysqlTable("daily_summaries", {
 export type DailySummary = typeof dailySummaries.$inferSelect;
 export type InsertDailySummary = typeof dailySummaries.$inferInsert;
 
+// User Profiles (perfis estendidos)
+export const userProfiles = mysqlTable("user_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull().unique(),
+  avatarUrl: varchar("avatar_url", { length: 500 }),
+  avatarKey: varchar("avatar_key", { length: 500 }), // S3 key
+  bio: text("bio"),
+  headline: varchar("headline", { length: 255 }), // Ex: "Engenheiro de IA na Startup X"
+  company: varchar("company", { length: 255 }),
+  position: varchar("position", { length: 255 }),
+  location: varchar("location", { length: 255 }),
+  linkedinUrl: varchar("linkedin_url", { length: 500 }),
+  githubUrl: varchar("github_url", { length: 500 }),
+  websiteUrl: varchar("website_url", { length: 500 }),
+  interests: text("interests"), // JSON array de interesses: ["IA", "Startups", "Data Science"]
+  isPublic: int("is_public").default(1).notNull(), // 1 = perfil público, 0 = privado
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type InsertUserProfile = typeof userProfiles.$inferInsert;
+
+// User Connections (conexões entre usuários)
+export const userConnections = mysqlTable("user_connections", {
+  id: int("id").autoincrement().primaryKey(),
+  requesterId: int("requester_id").notNull(), // Quem enviou a solicitação
+  receiverId: int("receiver_id").notNull(), // Quem recebeu a solicitação
+  status: mysqlEnum("status", ["pending", "accepted", "rejected"]).default("pending").notNull(),
+  message: text("message"), // Mensagem opcional ao solicitar conexão
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserConnection = typeof userConnections.$inferSelect;
+export type InsertUserConnection = typeof userConnections.$inferInsert;
+
 // TODO: Add your tables here
