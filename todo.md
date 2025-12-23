@@ -202,3 +202,9 @@
 - [x] Criar página de chat com interface moderna
 - [x] Adicionar link do chat no menu de navegação
 - [x] Testar funcionalidades do chat
+
+## Integração de Calendário com Contexto Temporal
+- [x] Atualizar assistente Papaya com noção de data/hora atual
+- [x] Criar página de calendário visual de eventos
+- [x] Adicionar link do calendário no menu de navegação
+- [x] Testar contexto temporal do assistente

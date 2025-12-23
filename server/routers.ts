@@ -645,8 +645,31 @@ export const appRouter = router({
             const context = await db.getCommunityContext();
             const { invokeLLM } = await import('./_core/llm');
 
-            // Criar prompt com contexto
+            // Criar prompt com contexto temporal
+            const now = new Date();
+            const brazilTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+            const currentDate = brazilTime.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const currentTime = brazilTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            
+            // Calcular dias até os eventos
+            const eventsWithDays = context?.upcomingEvents?.map(e => {
+              const eventDate = new Date(e.eventDate);
+              const diffTime = eventDate.getTime() - brazilTime.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              let timeInfo = '';
+              if (diffDays === 0) timeInfo = '(HOJE!)';
+              else if (diffDays === 1) timeInfo = '(amanhã)';
+              else if (diffDays < 0) timeInfo = '(já passou)';
+              else if (diffDays <= 7) timeInfo = `(em ${diffDays} dias)`;
+              else if (diffDays <= 30) timeInfo = `(em ${Math.ceil(diffDays / 7)} semanas)`;
+              else timeInfo = `(em ${Math.ceil(diffDays / 30)} meses)`;
+              return `- ${e.title}: ${e.description} - ${new Date(e.eventDate).toLocaleDateString('pt-BR')} ${timeInfo}`;
+            }) || [];
+
             const systemPrompt = `Você é o Papaya, o assistente virtual da comunidade PapayaNews. Você ajuda os membros a descobrir novidades sobre IA, startups e inovação.
+
+📅 DATA E HORA ATUAL:
+Hoje é ${currentDate}, são ${currentTime} (horário de Brasília).
 
 Contexto atual da comunidade:
 
@@ -654,10 +677,16 @@ CONTEÚDOS RECENTES:
 ${context?.recentContent?.map(c => `- ${c.title}: ${c.description} (${c.category})`).join('\n') || 'Nenhum conteúdo disponível'}
 
 PRÓXIMOS EVENTOS:
-${context?.upcomingEvents?.map(e => `- ${e.title}: ${e.description} - ${new Date(e.eventDate).toLocaleDateString('pt-BR')}`).join('\n') || 'Nenhum evento agendado'}
+${eventsWithDays.join('\n') || 'Nenhum evento agendado'}
 
 NEWSLETTERS RECENTES:
 ${context?.recentNewsletters?.map(n => `- ${n.title}: ${n.subject}`).join('\n') || 'Nenhuma newsletter enviada'}
+
+IMPORTANTE: Use a data e hora atual para contextualizar suas respostas. Por exemplo:
+- Se perguntarem sobre eventos, diga quantos dias faltam
+- Se for de manhã, cumprimente com "Bom dia"
+- Se for à tarde, cumprimente com "Boa tarde"
+- Se for à noite, cumprimente com "Boa noite"
 
 Responda de forma amigável, útil e concisa em português brasileiro. Use emojis ocasionalmente para tornar a conversa mais leve. Se não souber algo, sugira que o usuário explore os conteúdos disponíveis ou entre em contato com a equipe.`;
 

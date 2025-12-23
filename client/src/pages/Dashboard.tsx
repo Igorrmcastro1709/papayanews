@@ -20,7 +20,7 @@ import {
   Menu,
   X,
   Home as HomeIcon,
-  Calendar,
+  Calendar as CalendarIcon,
   MapPin,
   Clock,
   Settings,
@@ -125,6 +125,10 @@ export default function Dashboard() {
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Chat
               </Button>
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/calendar")}>
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                Calendário
+              </Button>
               <NotificationBell />
               <Button variant="ghost" size="sm" onClick={() => setLocation("/profile")}>
                 <User className="h-4 w-4 mr-2" />
@@ -157,6 +161,9 @@ export default function Dashboard() {
             </Button>
             <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/chat"); setMobileMenuOpen(false); }}>
               <MessageCircle className="h-4 w-4 mr-2" /> Chat
+            </Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/calendar"); setMobileMenuOpen(false); }}>
+              <CalendarIcon className="h-4 w-4 mr-2" /> Calendário
             </Button>
             <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/profile"); setMobileMenuOpen(false); }}>
               <User className="h-4 w-4 mr-2" /> Meu Perfil
@@ -279,7 +286,7 @@ export default function Dashboard() {
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-green-500" />
+                  <CalendarIcon className="h-5 w-5 text-green-500" />
                   Próximos Eventos
                 </h3>
               </div>
