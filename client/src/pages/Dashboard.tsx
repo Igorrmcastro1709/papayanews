@@ -90,8 +90,8 @@ export default function Dashboard() {
   const socialLinks = [
     { icon: Youtube, label: "YouTube", href: "https://youtube.com/@papayanews", color: "bg-red-500" },
     { icon: Linkedin, label: "LinkedIn", href: "https://www.linkedin.com/company/papaya-news-ai/", color: "bg-blue-600" },
-    { icon: Instagram, label: "Instagram", href: "https://instagram.com/papayanews", color: "bg-pink-500" },
-    { icon: Mail, label: "Substack", href: "https://papayanews.substack.com", color: "bg-orange-500" },
+    { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/papayanews2025/", color: "bg-pink-500" },
+    { icon: Mail, label: "Substack", href: "https://ppapayanews.substack.com/", color: "bg-orange-500" },
   ];
 
   return (

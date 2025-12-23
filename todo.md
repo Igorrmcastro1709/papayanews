@@ -188,3 +188,9 @@
 ## Atualização do Logo
 - [x] Baixar novo logo do Adobe Acrobat
 - [x] Atualizar logo no site
+
+## Atualização dos Links de Redes Sociais
+- [x] Atualizar link do Substack para https://ppapayanews.substack.com/
+- [x] Atualizar link do Instagram para https://www.instagram.com/papayanews2025/
+- [x] Atualizar link do LinkedIn para https://www.linkedin.com/company/papaya-news-ai/
+- [x] Verificar acessibilidade dos links

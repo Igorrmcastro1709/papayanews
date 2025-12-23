@@ -83,8 +83,8 @@ export default function Home() {
   const socialLinks = [
     { icon: Youtube, label: "YouTube", href: "https://youtube.com/@papayanews", gradient: "from-red-500 to-red-600" },
     { icon: Linkedin, label: "LinkedIn", href: "https://www.linkedin.com/company/papaya-news-ai/", gradient: "from-blue-600 to-blue-700" },
-    { icon: Instagram, label: "Instagram", href: "https://instagram.com/papayanews", gradient: "from-pink-500 to-purple-600" },
-    { icon: Mail, label: "Substack", href: "https://papayanews.substack.com", gradient: "from-orange-500 to-yellow-500" },
+    { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/papayanews2025/", gradient: "from-pink-500 to-purple-600" },
+    { icon: Mail, label: "Substack", href: "https://ppapayanews.substack.com/", gradient: "from-orange-500 to-yellow-500" },
   ];
 
   const benefits = [
