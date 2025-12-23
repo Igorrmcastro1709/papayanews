@@ -184,3 +184,7 @@
 - [x] Configurar meta title (30-60 caracteres)
 - [x] Configurar meta description (50-160 caracteres)
 - [x] Adicionar palavras-chave relevantes (IA, startups, inovação, comunidade)
+
+## Atualização do Logo
+- [x] Baixar novo logo do Adobe Acrobat
+- [x] Atualizar logo no site
