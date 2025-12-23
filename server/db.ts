@@ -1,6 +1,6 @@
-import { eq, and, gte, count, sql, desc, or } from "drizzle-orm";
+import { eq, and, gte, count, sql, desc, or, lte, between } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress, chatMessages, InsertChatMessage } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress, chatMessages, InsertChatMessage, chatAttachments, InsertChatAttachment, dailySummaries, InsertDailySummary } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
 import { sendVerificationEmail as sendVerificationEmailResend } from './_core/email';
@@ -1183,6 +1183,106 @@ export async function getCommunityContext() {
     upcomingEvents,
     recentNewsletters,
   };
+}
+
+// Chat Attachments functions
+export async function createChatAttachment(attachment: InsertChatAttachment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(chatAttachments).values(attachment);
+  return result;
+}
+
+export async function getAttachmentsByMessageId(messageId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(chatAttachments)
+    .where(eq(chatAttachments.messageId, messageId));
+}
+
+export async function getMessagesWithAttachments(limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const messages = await db
+    .select()
+    .from(chatMessages)
+    .orderBy(desc(chatMessages.createdAt))
+    .limit(limit);
+
+  // Buscar informações dos usuários
+  const userIds = Array.from(new Set(messages.map(m => m.userId)));
+  const usersData = userIds.length > 0 
+    ? await db.select().from(users).where(sql`${users.id} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`)
+    : [];
+  const usersMap = new Map(usersData.map(u => [u.id, u]));
+
+  // Buscar anexos para cada mensagem
+  const messagesWithAttachments = await Promise.all(
+    messages.map(async (msg) => {
+      const attachments = await getAttachmentsByMessageId(msg.id);
+      return { 
+        ...msg, 
+        attachments,
+        userName: usersMap.get(msg.userId)?.name || 'Usuário',
+        userEmail: usersMap.get(msg.userId)?.email || '',
+      };
+    })
+  );
+
+  return messagesWithAttachments.reverse();
+}
+
+// Daily Summary functions
+export async function createDailySummary(summary: InsertDailySummary) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(dailySummaries).values(summary);
+}
+
+export async function getDailySummary(date: Date) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const summaries = await db
+    .select()
+    .from(dailySummaries)
+    .where(between(dailySummaries.summaryDate, startOfDay, endOfDay))
+    .limit(1);
+
+  return summaries[0] || null;
+}
+
+export async function getRecentDailySummaries(limit = 7) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(dailySummaries)
+    .orderBy(desc(dailySummaries.summaryDate))
+    .limit(limit);
+}
+
+export async function getMessagesForDateRange(startDate: Date, endDate: Date) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(chatMessages)
+    .where(between(chatMessages.createdAt, startDate, endDate))
+    .orderBy(chatMessages.createdAt);
 }
 
 // TODO: add feature queries here as your schema grows.

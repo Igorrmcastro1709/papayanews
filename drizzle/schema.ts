@@ -280,4 +280,32 @@ export const chatMessages = mysqlTable("chat_messages", {
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
 
+// Chat Attachments (arquivos anexados às mensagens)
+export const chatAttachments = mysqlTable("chat_attachments", {
+  id: int("id").autoincrement().primaryKey(),
+  messageId: int("message_id").notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileUrl: varchar("file_url", { length: 500 }).notNull(),
+  fileKey: varchar("file_key", { length: 500 }).notNull(), // S3 key
+  fileType: varchar("file_type", { length: 100 }).notNull(), // MIME type
+  fileSize: int("file_size").notNull(), // tamanho em bytes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ChatAttachment = typeof chatAttachments.$inferSelect;
+export type InsertChatAttachment = typeof chatAttachments.$inferInsert;
+
+// Daily Summaries (resumos diários automáticos)
+export const dailySummaries = mysqlTable("daily_summaries", {
+  id: int("id").autoincrement().primaryKey(),
+  summaryDate: timestamp("summary_date").notNull(),
+  content: text("content").notNull(), // Resumo gerado pela IA
+  newsCount: int("news_count").default(0).notNull(),
+  messagesCount: int("messages_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DailySummary = typeof dailySummaries.$inferSelect;
+export type InsertDailySummary = typeof dailySummaries.$inferInsert;
+
 // TODO: Add your tables here

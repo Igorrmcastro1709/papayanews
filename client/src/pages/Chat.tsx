@@ -5,13 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Loader2, Send, User, Sparkles, MessageCircle, Bot, ArrowLeft, Info } from "lucide-react";
+import { Loader2, Send, Sparkles, MessageCircle, Bot, ArrowLeft, Info, Paperclip, X, FileText, Image as ImageIcon, Film, Music, File, Download } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Streamdown } from "streamdown";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Link } from "wouter";
 import { toast } from "sonner";
+import { EmojiPicker } from "@/components/EmojiPicker";
+
+type Attachment = {
+  id?: number;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  fileSize: number;
+};
 
 type ChatMessage = {
   id: number;
@@ -20,21 +29,29 @@ type ChatMessage = {
   isAiResponse: number;
   replyToId: number | null;
   createdAt: Date;
-  userName: string;
-  userEmail: string;
+  userName?: string;
+  userEmail?: string;
+  attachments?: Attachment[];
+};
+
+type PendingAttachment = {
+  file: File;
+  preview?: string;
 };
 
 export default function Chat() {
   const { user, loading: authLoading } = useAuth();
   const [input, setInput] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Buscar mensagens
-  const { data: messages, refetch, isLoading: messagesLoading } = trpc.chat.getMessages.useQuery(
+  // Buscar mensagens com anexos
+  const { data: messages, refetch, isLoading: messagesLoading } = trpc.chat.getMessagesWithAttachments.useQuery(
     { limit: 100 },
     { 
-      refetchInterval: 5000, // Atualizar a cada 5 segundos
+      refetchInterval: 5000,
       enabled: !!user,
     }
   );
@@ -44,11 +61,12 @@ export default function Chat() {
     enabled: !!user,
   });
 
-  // Mutation para enviar mensagem
-  const sendMessage = trpc.chat.sendMessage.useMutation({
+  // Mutation para enviar mensagem com anexos
+  const sendMessageWithAttachments = trpc.chat.sendMessageWithAttachments.useMutation({
     onSuccess: () => {
       refetch();
       setInput("");
+      setPendingAttachments([]);
     },
     onError: (error) => {
       toast.error(error.message || "Erro ao enviar mensagem");
@@ -65,12 +83,45 @@ export default function Chat() {
     }
   }, [messages]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Converter arquivo para base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remover o prefixo "data:...;base64,"
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedInput = input.trim();
-    if (!trimmedInput || sendMessage.isPending) return;
+    if ((!trimmedInput && pendingAttachments.length === 0) || sendMessageWithAttachments.isPending) return;
 
-    sendMessage.mutate({ message: trimmedInput });
+    try {
+      // Converter anexos para base64
+      const attachmentsData = await Promise.all(
+        pendingAttachments.map(async (pa) => ({
+          fileName: pa.file.name,
+          fileData: await fileToBase64(pa.file),
+          fileType: pa.file.type,
+          fileSize: pa.file.size,
+        }))
+      );
+
+      sendMessageWithAttachments.mutate({
+        message: trimmedInput,
+        attachments: attachmentsData.length > 0 ? attachmentsData : undefined,
+      });
+    } catch (error) {
+      toast.error("Erro ao processar arquivos");
+    }
+
     textareaRef.current?.focus();
   };
 
@@ -79,6 +130,54 @@ export default function Chat() {
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const maxSize = 10 * 1024 * 1024; // 10MB
+
+    const validFiles = files.filter(file => {
+      if (file.size > maxSize) {
+        toast.error(`${file.name} é muito grande. Máximo: 10MB`);
+        return false;
+      }
+      return true;
+    });
+
+    const newAttachments: PendingAttachment[] = validFiles.map(file => {
+      const attachment: PendingAttachment = { file };
+      
+      // Criar preview para imagens
+      if (file.type.startsWith('image/')) {
+        attachment.preview = URL.createObjectURL(file);
+      }
+      
+      return attachment;
+    });
+
+    setPendingAttachments(prev => [...prev, ...newAttachments]);
+    
+    // Limpar input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setPendingAttachments(prev => {
+      const newAttachments = [...prev];
+      // Revogar URL de preview se existir
+      if (newAttachments[index].preview) {
+        URL.revokeObjectURL(newAttachments[index].preview!);
+      }
+      newAttachments.splice(index, 1);
+      return newAttachments;
+    });
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setInput(prev => prev + emoji);
+    textareaRef.current?.focus();
   };
 
   const getInitials = (name: string) => {
@@ -95,6 +194,78 @@ export default function Chat() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('image/')) return <ImageIcon className="h-5 w-5" />;
+    if (fileType.startsWith('video/')) return <Film className="h-5 w-5" />;
+    if (fileType.startsWith('audio/')) return <Music className="h-5 w-5" />;
+    if (fileType.includes('pdf') || fileType.includes('document')) return <FileText className="h-5 w-5" />;
+    return <File className="h-5 w-5" />;
+  };
+
+  const renderAttachment = (attachment: Attachment, isOwnMessage: boolean) => {
+    const isImage = attachment.fileType.startsWith('image/');
+    const isVideo = attachment.fileType.startsWith('video/');
+    const isAudio = attachment.fileType.startsWith('audio/');
+
+    if (isImage) {
+      return (
+        <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer" className="block">
+          <img 
+            src={attachment.fileUrl} 
+            alt={attachment.fileName}
+            className="max-w-[250px] max-h-[200px] rounded-lg object-cover hover:opacity-90 transition-opacity"
+          />
+        </a>
+      );
+    }
+
+    if (isVideo) {
+      return (
+        <video 
+          src={attachment.fileUrl} 
+          controls 
+          className="max-w-[300px] rounded-lg"
+        />
+      );
+    }
+
+    if (isAudio) {
+      return (
+        <audio src={attachment.fileUrl} controls className="max-w-[250px]" />
+      );
+    }
+
+    // Outros arquivos
+    return (
+      <a 
+        href={attachment.fileUrl} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className={cn(
+          "flex items-center gap-3 p-3 rounded-lg transition-colors",
+          isOwnMessage 
+            ? "bg-white/20 hover:bg-white/30" 
+            : "bg-gray-100 hover:bg-gray-200"
+        )}
+      >
+        {getFileIcon(attachment.fileType)}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{attachment.fileName}</p>
+          <p className={cn("text-xs", isOwnMessage ? "text-white/70" : "text-muted-foreground")}>
+            {formatFileSize(attachment.fileSize)}
+          </p>
+        </div>
+        <Download className="h-4 w-4 shrink-0" />
+      </a>
+    );
   };
 
   if (authLoading) {
@@ -221,13 +392,26 @@ export default function Chat() {
                             </div>
                           )}
                           
-                          {/* Conteúdo */}
-                          {msg.isAiResponse === 1 ? (
-                            <div className="prose prose-sm max-w-none text-gray-800">
-                              <Streamdown>{msg.message}</Streamdown>
+                          {/* Anexos */}
+                          {msg.attachments && msg.attachments.length > 0 && (
+                            <div className="space-y-2 mb-2">
+                              {msg.attachments.map((attachment, idx) => (
+                                <div key={idx}>
+                                  {renderAttachment(attachment, msg.userId === user.id)}
+                                </div>
+                              ))}
                             </div>
-                          ) : (
-                            <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                          )}
+                          
+                          {/* Conteúdo */}
+                          {msg.message && msg.message !== '[📎 Arquivo anexado]' && (
+                            msg.isAiResponse === 1 ? (
+                              <div className="prose prose-sm max-w-none text-gray-800">
+                                <Streamdown>{msg.message}</Streamdown>
+                              </div>
+                            ) : (
+                              <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                            )
                           )}
                           
                           {/* Hora */}
@@ -255,7 +439,7 @@ export default function Chat() {
                     ))}
 
                     {/* Loading indicator */}
-                    {sendMessage.isPending && (
+                    {sendMessageWithAttachments.isPending && (
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback className="bg-gradient-to-br from-orange-400 to-amber-500 text-white">
@@ -280,9 +464,64 @@ export default function Chat() {
                 )}
               </ScrollArea>
 
+              {/* Preview de anexos pendentes */}
+              {pendingAttachments.length > 0 && (
+                <div className="px-4 py-2 border-t bg-gray-50">
+                  <div className="flex flex-wrap gap-2">
+                    {pendingAttachments.map((pa, index) => (
+                      <div 
+                        key={index} 
+                        className="relative group bg-white rounded-lg border p-2 flex items-center gap-2"
+                      >
+                        {pa.preview ? (
+                          <img src={pa.preview} alt="" className="w-12 h-12 rounded object-cover" />
+                        ) : (
+                          <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center">
+                            {getFileIcon(pa.file.type)}
+                          </div>
+                        )}
+                        <div className="max-w-[120px]">
+                          <p className="text-xs font-medium truncate">{pa.file.name}</p>
+                          <p className="text-xs text-muted-foreground">{formatFileSize(pa.file.size)}</p>
+                        </div>
+                        <button
+                          onClick={() => removeAttachment(index)}
+                          className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Input */}
               <form onSubmit={handleSubmit} className="p-4 border-t bg-white/50">
-                <div className="flex gap-2">
+                <div className="flex items-end gap-2">
+                  {/* Botão de anexo */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-9 w-9 text-muted-foreground hover:text-foreground shrink-0"
+                  >
+                    <Paperclip className="h-5 w-5" />
+                  </Button>
+
+                  {/* Emoji Picker */}
+                  <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+
+                  {/* Textarea */}
                   <Textarea
                     ref={textareaRef}
                     value={input}
@@ -292,13 +531,15 @@ export default function Chat() {
                     className="flex-1 min-h-[44px] max-h-32 resize-none"
                     rows={1}
                   />
+
+                  {/* Botão de enviar */}
                   <Button
                     type="submit"
                     size="icon"
-                    disabled={!input.trim() || sendMessage.isPending}
-                    className="h-[44px] w-[44px] bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                    disabled={(!input.trim() && pendingAttachments.length === 0) || sendMessageWithAttachments.isPending}
+                    className="h-[44px] w-[44px] bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shrink-0"
                   >
-                    {sendMessage.isPending ? (
+                    {sendMessageWithAttachments.isPending ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
                       <Send className="h-5 w-5" />
@@ -322,7 +563,8 @@ export default function Chat() {
               <CardContent className="text-sm space-y-2 text-muted-foreground">
                 <p>• Converse livremente com outros membros</p>
                 <p>• Use <strong className="text-orange-600">@papaya</strong> para perguntar ao assistente</p>
-                <p>• O assistente conhece os conteúdos e eventos da comunidade</p>
+                <p>• Envie fotos, vídeos e documentos 📎</p>
+                <p>• Use emojis para expressar suas reações 😊</p>
               </CardContent>
             </Card>
 

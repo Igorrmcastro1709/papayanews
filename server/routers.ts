@@ -729,6 +729,246 @@ Responda de forma amigável, útil e concisa em português brasileiro. Use emoji
     getCommunityContext: protectedProcedure.query(async () => {
       return db.getCommunityContext();
     }),
+
+    // Upload de arquivo para o chat
+    uploadAttachment: protectedProcedure
+      .input(z.object({
+        messageId: z.number(),
+        fileName: z.string(),
+        fileData: z.string(), // Base64 encoded
+        fileType: z.string(),
+        fileSize: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { storagePut } = await import('./storage');
+        
+        // Gerar chave única para o arquivo
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substring(2, 8);
+        const sanitizedFileName = input.fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const fileKey = `chat/${ctx.user.id}/${timestamp}-${randomSuffix}-${sanitizedFileName}`;
+        
+        // Converter base64 para buffer
+        const fileBuffer = Buffer.from(input.fileData, 'base64');
+        
+        // Upload para S3
+        const { url } = await storagePut(fileKey, fileBuffer, input.fileType);
+        
+        // Salvar referência no banco
+        await db.createChatAttachment({
+          messageId: input.messageId,
+          fileName: input.fileName,
+          fileUrl: url,
+          fileKey: fileKey,
+          fileType: input.fileType,
+          fileSize: input.fileSize,
+        });
+        
+        return { success: true, url, fileKey };
+      }),
+
+    // Enviar mensagem com anexos
+    sendMessageWithAttachments: protectedProcedure
+      .input(z.object({
+        message: z.string(),
+        replyToId: z.number().optional(),
+        attachments: z.array(z.object({
+          fileName: z.string(),
+          fileData: z.string(), // Base64 encoded
+          fileType: z.string(),
+          fileSize: z.number(),
+        })).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { storagePut } = await import('./storage');
+        
+        // Criar mensagem primeiro
+        const messageResult = await db.createChatMessage({
+          userId: ctx.user.id,
+          message: input.message || '[📎 Arquivo anexado]',
+          isAiResponse: 0,
+          replyToId: input.replyToId || null,
+        });
+        
+        // Buscar o ID da mensagem recém criada
+        const messages = await db.getChatMessages(1);
+        const newMessage = messages[messages.length - 1];
+        
+        if (!newMessage) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Erro ao criar mensagem' });
+        }
+        
+        // Upload de anexos se houver
+        const uploadedAttachments = [];
+        if (input.attachments && input.attachments.length > 0) {
+          for (const attachment of input.attachments) {
+            const timestamp = Date.now();
+            const randomSuffix = Math.random().toString(36).substring(2, 8);
+            const sanitizedFileName = attachment.fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const fileKey = `chat/${ctx.user.id}/${timestamp}-${randomSuffix}-${sanitizedFileName}`;
+            
+            const fileBuffer = Buffer.from(attachment.fileData, 'base64');
+            const { url } = await storagePut(fileKey, fileBuffer, attachment.fileType);
+            
+            await db.createChatAttachment({
+              messageId: newMessage.id,
+              fileName: attachment.fileName,
+              fileUrl: url,
+              fileKey: fileKey,
+              fileType: attachment.fileType,
+              fileSize: attachment.fileSize,
+            });
+            
+            uploadedAttachments.push({ fileName: attachment.fileName, url, fileType: attachment.fileType });
+          }
+        }
+        
+        // Verificar se é uma pergunta para o assistente
+        const isAiQuestion = input.message.toLowerCase().includes('@papaya') || 
+                            input.message.toLowerCase().includes('@assistente') ||
+                            input.message.toLowerCase().startsWith('/');
+
+        if (isAiQuestion) {
+          try {
+            const context = await db.getCommunityContext();
+            const { invokeLLM } = await import('./_core/llm');
+
+            const now = new Date();
+            const brazilTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+            const currentDate = brazilTime.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const currentTime = brazilTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            
+            const eventsWithDays = context?.upcomingEvents?.map(e => {
+              const eventDate = new Date(e.eventDate);
+              const diffTime = eventDate.getTime() - brazilTime.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              let timeInfo = '';
+              if (diffDays === 0) timeInfo = '(HOJE!)';
+              else if (diffDays === 1) timeInfo = '(amanhã)';
+              else if (diffDays < 0) timeInfo = '(já passou)';
+              else if (diffDays <= 7) timeInfo = `(em ${diffDays} dias)`;
+              else if (diffDays <= 30) timeInfo = `(em ${Math.ceil(diffDays / 7)} semanas)`;
+              else timeInfo = `(em ${Math.ceil(diffDays / 30)} meses)`;
+              return `- ${e.title}: ${e.description} - ${new Date(e.eventDate).toLocaleDateString('pt-BR')} ${timeInfo}`;
+            }) || [];
+
+            const systemPrompt = `Você é o Papaya, o assistente virtual da comunidade PapayaNews.
+
+📅 DATA E HORA ATUAL: ${currentDate}, ${currentTime} (horário de Brasília).
+
+CONTEÚDOS RECENTES:
+${context?.recentContent?.map(c => `- ${c.title}: ${c.description}`).join('\n') || 'Nenhum'}
+
+PRÓXIMOS EVENTOS:
+${eventsWithDays.join('\n') || 'Nenhum'}
+
+Responda de forma amigável e concisa em português brasileiro. Use emojis ocasionalmente.`;
+
+            const userMessage = input.message.replace(/@papaya/gi, '').replace(/@assistente/gi, '').replace(/^\//g, '').trim();
+
+            const response = await invokeLLM({
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userMessage },
+              ],
+            });
+
+            const aiResponse = response.choices[0]?.message?.content || 'Desculpe, não consegui processar sua pergunta.';
+
+            await db.createChatMessage({
+              userId: ctx.user.id,
+              message: typeof aiResponse === 'string' ? aiResponse : JSON.stringify(aiResponse),
+              isAiResponse: 1,
+              replyToId: null,
+            });
+
+            return { success: true, aiResponse: true, attachments: uploadedAttachments };
+          } catch (error) {
+            console.error('Erro ao processar pergunta com IA:', error);
+            return { success: true, aiResponse: false, attachments: uploadedAttachments };
+          }
+        }
+        
+        return { success: true, aiResponse: false, attachments: uploadedAttachments };
+      }),
+
+    // Buscar mensagens com anexos
+    getMessagesWithAttachments: protectedProcedure
+      .input(z.object({ limit: z.number().default(50) }).optional())
+      .query(async ({ input }) => {
+        return db.getMessagesWithAttachments(input?.limit || 50);
+      }),
+
+    // Gerar resumo diário
+    generateDailySummary: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        // Apenas admins podem gerar resumo manualmente
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas administradores podem gerar resumos' });
+        }
+        
+        const { invokeLLM } = await import('./_core/llm');
+        
+        // Buscar mensagens do dia
+        const now = new Date();
+        const startOfDay = new Date(now);
+        startOfDay.setHours(0, 0, 0, 0);
+        
+        const messages = await db.getMessagesForDateRange(startOfDay, now);
+        const context = await db.getCommunityContext();
+        
+        if (messages.length === 0) {
+          return { success: false, message: 'Nenhuma mensagem hoje para resumir' };
+        }
+        
+        const systemPrompt = `Você é um assistente que cria resumos diários para a comunidade PapayaNews.
+Crie um resumo conciso e informativo das atividades do dia, incluindo:
+- Principais tópicos discutidos
+- Notícias ou conteúdos compartilhados
+- Eventos mencionados
+- Destaques da comunidade
+
+Formato: Use emojis, seja breve e objetivo. Máximo 300 palavras.`;
+        
+        const messagesText = messages
+          .filter(m => m.isAiResponse === 0)
+          .map(m => m.message)
+          .join('\n');
+        
+        const response = await invokeLLM({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Mensagens do dia:\n${messagesText}\n\nConteúdos recentes: ${context?.recentContent?.map(c => c.title).join(', ')}` },
+          ],
+        });
+        
+        const summaryContent = response.choices[0]?.message?.content || 'Não foi possível gerar o resumo.';
+        
+        // Salvar resumo
+        await db.createDailySummary({
+          summaryDate: now,
+          content: typeof summaryContent === 'string' ? summaryContent : JSON.stringify(summaryContent),
+          newsCount: context?.recentContent?.length || 0,
+          messagesCount: messages.length,
+        });
+        
+        // Postar resumo no chat
+        await db.createChatMessage({
+          userId: ctx.user.id,
+          message: `📰 **Resumo do Dia - ${now.toLocaleDateString('pt-BR')}**\n\n${summaryContent}`,
+          isAiResponse: 1,
+          replyToId: null,
+        });
+        
+        return { success: true, summary: summaryContent };
+      }),
+
+    // Buscar resumos recentes
+    getRecentSummaries: protectedProcedure
+      .input(z.object({ limit: z.number().default(7) }).optional())
+      .query(async ({ input }) => {
+        return db.getRecentDailySummaries(input?.limit || 7);
+      }),
   }),
 });
 

@@ -208,3 +208,11 @@
 - [x] Criar página de calendário visual de eventos
 - [x] Adicionar link do calendário no menu de navegação
 - [x] Testar contexto temporal do assistente
+
+## Melhorias no Chat - Estilo WhatsApp
+- [x] Atualizar schema do banco para suportar anexos nas mensagens
+- [x] Implementar upload de arquivos (fotos, documentos, etc) com S3
+- [x] Adicionar seletor de emojis no chat
+- [x] Implementar resumo diário automático de notícias/conversas
+- [x] Atualizar interface do chat com preview de arquivos
+- [x] Testar todas as funcionalidades
