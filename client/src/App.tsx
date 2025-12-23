@@ -11,6 +11,7 @@ import Profile from "./pages/Profile";
 import Search from "./pages/Search";
 import Challenges from "./pages/Challenges";
 import Forum from "./pages/Forum";
+import Chat from "./pages/Chat";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/search" component={Search} />
       <Route path="/challenges" component={Challenges} />
       <Route path="/forum" component={Forum} />
+      <Route path="/chat" component={Chat} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

@@ -194,3 +194,11 @@
 - [x] Atualizar link do Instagram para https://www.instagram.com/papayanews2025/
 - [x] Atualizar link do LinkedIn para https://www.linkedin.com/company/papaya-news-ai/
 - [x] Verificar acessibilidade dos links
+
+## Chat Interno da Comunidade com LLM
+- [x] Criar schema do banco de dados para mensagens do chat
+- [x] Implementar rotas tRPC para enviar/receber mensagens
+- [x] Integrar LLM para assistente da comunidade (novidades, artigos, eventos)
+- [x] Criar página de chat com interface moderna
+- [x] Adicionar link do chat no menu de navegação
+- [x] Testar funcionalidades do chat

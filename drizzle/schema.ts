@@ -267,4 +267,17 @@ export const userChallengeProgress = mysqlTable("user_challenge_progress", {
 
 export type UserChallengeProgress = typeof userChallengeProgress.$inferSelect;
 
+// Community Chat System
+export const chatMessages = mysqlTable("chat_messages", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  message: text("message").notNull(),
+  isAiResponse: int("is_ai_response").default(0).notNull(), // 1 = resposta da IA, 0 = mensagem de usuário
+  replyToId: int("reply_to_id"), // ID da mensagem que está respondendo (para threads)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = typeof chatMessages.$inferInsert;
+
 // TODO: Add your tables here

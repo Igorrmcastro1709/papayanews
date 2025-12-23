@@ -23,7 +23,8 @@ import {
   Calendar,
   MapPin,
   Clock,
-  Settings
+  Settings,
+  MessageCircle
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
@@ -120,6 +121,10 @@ export default function Dashboard() {
                 <SearchIcon className="h-4 w-4 mr-2" />
                 Buscar
               </Button>
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/chat")}>
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Chat
+              </Button>
               <NotificationBell />
               <Button variant="ghost" size="sm" onClick={() => setLocation("/profile")}>
                 <User className="h-4 w-4 mr-2" />
@@ -149,6 +154,9 @@ export default function Dashboard() {
           <div className="md:hidden bg-white border-t border-orange-100 py-4 px-4 space-y-2">
             <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/search"); setMobileMenuOpen(false); }}>
               <SearchIcon className="h-4 w-4 mr-2" /> Buscar
+            </Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/chat"); setMobileMenuOpen(false); }}>
+              <MessageCircle className="h-4 w-4 mr-2" /> Chat
             </Button>
             <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/profile"); setMobileMenuOpen(false); }}>
               <User className="h-4 w-4 mr-2" /> Meu Perfil

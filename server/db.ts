@@ -1,6 +1,6 @@
 import { eq, and, gte, count, sql, desc, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress, chatMessages, InsertChatMessage } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
 import { sendVerificationEmail as sendVerificationEmailResend } from './_core/email';
@@ -1105,6 +1105,83 @@ export async function getUserBadgeProgress(userId: number) {
     nextBadge,
     pointsNeeded,
     progress: Math.min(progress, 100),
+  };
+}
+
+// Chat Community Functions
+
+export async function getChatMessages(limit: number = 50) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const messages = await db
+    .select({
+      id: chatMessages.id,
+      userId: chatMessages.userId,
+      message: chatMessages.message,
+      isAiResponse: chatMessages.isAiResponse,
+      replyToId: chatMessages.replyToId,
+      createdAt: chatMessages.createdAt,
+    })
+    .from(chatMessages)
+    .orderBy(desc(chatMessages.createdAt))
+    .limit(limit);
+
+  // Buscar informações dos usuários
+  const userIds = Array.from(new Set(messages.map(m => m.userId)));
+  const usersData = await db.select().from(users).where(
+    userIds.length > 0 ? sql`${users.id} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})` : sql`1=0`
+  );
+
+  const usersMap = new Map(usersData.map(u => [u.id, u]));
+
+  return messages.reverse().map(m => ({
+    ...m,
+    userName: usersMap.get(m.userId)?.name || 'Usuário',
+    userEmail: usersMap.get(m.userId)?.email || '',
+  }));
+}
+
+export async function createChatMessage(data: InsertChatMessage) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(chatMessages).values(data);
+  return result;
+}
+
+export async function getCommunityContext() {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Buscar conteúdos recentes
+  const recentContent = await db
+    .select()
+    .from(featuredContent)
+    .where(eq(featuredContent.active, 1))
+    .orderBy(desc(featuredContent.createdAt))
+    .limit(5);
+
+  // Buscar eventos próximos
+  const upcomingEvents = await db
+    .select()
+    .from(events)
+    .where(eq(events.active, 1))
+    .orderBy(events.eventDate)
+    .limit(5);
+
+  // Buscar newsletters recentes
+  const recentNewsletters = await db
+    .select()
+    .from(newsletters)
+    .where(eq(newsletters.status, 'sent'))
+    .orderBy(desc(newsletters.sentAt))
+    .limit(3);
+
+  return {
+    recentContent,
+    upcomingEvents,
+    recentNewsletters,
   };
 }
 

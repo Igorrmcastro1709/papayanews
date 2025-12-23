@@ -611,6 +611,96 @@ export const appRouter = router({
       return db.getUserBadgeProgress(ctx.user.id);
     }),
   }),
+
+  // Chat da Comunidade com LLM
+  chat: router({
+    getMessages: protectedProcedure
+      .input(z.object({ limit: z.number().default(50) }).optional())
+      .query(async ({ input }) => {
+        return db.getChatMessages(input?.limit || 50);
+      }),
+
+    sendMessage: protectedProcedure
+      .input(z.object({
+        message: z.string().min(1, "Mensagem não pode estar vazia"),
+        replyToId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Salvar mensagem do usuário
+        await db.createChatMessage({
+          userId: ctx.user.id,
+          message: input.message,
+          isAiResponse: 0,
+          replyToId: input.replyToId || null,
+        });
+
+        // Verificar se é uma pergunta para o assistente (começa com @papaya ou menciona o bot)
+        const isAiQuestion = input.message.toLowerCase().includes('@papaya') || 
+                            input.message.toLowerCase().includes('@assistente') ||
+                            input.message.toLowerCase().startsWith('/');
+
+        if (isAiQuestion) {
+          try {
+            // Buscar contexto da comunidade
+            const context = await db.getCommunityContext();
+            const { invokeLLM } = await import('./_core/llm');
+
+            // Criar prompt com contexto
+            const systemPrompt = `Você é o Papaya, o assistente virtual da comunidade PapayaNews. Você ajuda os membros a descobrir novidades sobre IA, startups e inovação.
+
+Contexto atual da comunidade:
+
+CONTEÚDOS RECENTES:
+${context?.recentContent?.map(c => `- ${c.title}: ${c.description} (${c.category})`).join('\n') || 'Nenhum conteúdo disponível'}
+
+PRÓXIMOS EVENTOS:
+${context?.upcomingEvents?.map(e => `- ${e.title}: ${e.description} - ${new Date(e.eventDate).toLocaleDateString('pt-BR')}`).join('\n') || 'Nenhum evento agendado'}
+
+NEWSLETTERS RECENTES:
+${context?.recentNewsletters?.map(n => `- ${n.title}: ${n.subject}`).join('\n') || 'Nenhuma newsletter enviada'}
+
+Responda de forma amigável, útil e concisa em português brasileiro. Use emojis ocasionalmente para tornar a conversa mais leve. Se não souber algo, sugira que o usuário explore os conteúdos disponíveis ou entre em contato com a equipe.`;
+
+            const userMessage = input.message.replace(/@papaya/gi, '').replace(/@assistente/gi, '').replace(/^\//g, '').trim();
+
+            const response = await invokeLLM({
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userMessage },
+              ],
+            });
+
+            const aiResponse = response.choices[0]?.message?.content || 'Desculpe, não consegui processar sua pergunta. Tente novamente!';
+
+            // Salvar resposta da IA
+            await db.createChatMessage({
+              userId: ctx.user.id, // Usar o mesmo userId para manter a referência
+              message: typeof aiResponse === 'string' ? aiResponse : JSON.stringify(aiResponse),
+              isAiResponse: 1,
+              replyToId: null,
+            });
+
+            return { success: true, aiResponse: true };
+          } catch (error) {
+            console.error('Erro ao processar pergunta com IA:', error);
+            // Salvar mensagem de erro
+            await db.createChatMessage({
+              userId: ctx.user.id,
+              message: '🤔 Desculpe, estou com dificuldades técnicas no momento. Tente novamente em alguns instantes!',
+              isAiResponse: 1,
+              replyToId: null,
+            });
+            return { success: true, aiResponse: true };
+          }
+        }
+
+        return { success: true, aiResponse: false };
+      }),
+
+    getCommunityContext: protectedProcedure.query(async () => {
+      return db.getCommunityContext();
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
