@@ -800,6 +800,8 @@ Responda de forma amigável, útil e concisa em português brasileiro. Use emoji
         
         // Upload de anexos se houver
         const uploadedAttachments = [];
+        const documentsToAnalyze: { url: string; fileName: string; fileType: string; mimeType: string }[] = [];
+        
         if (input.attachments && input.attachments.length > 0) {
           for (const attachment of input.attachments) {
             const timestamp = Date.now();
@@ -820,6 +822,71 @@ Responda de forma amigável, útil e concisa em português brasileiro. Use emoji
             });
             
             uploadedAttachments.push({ fileName: attachment.fileName, url, fileType: attachment.fileType });
+            
+            // Verificar se é um documento que pode ser analisado pela IA
+            const isPdf = attachment.fileType.includes('pdf');
+            const isImage = attachment.fileType.includes('image');
+            if (isPdf || isImage) {
+              documentsToAnalyze.push({
+                url,
+                fileName: attachment.fileName,
+                fileType: isPdf ? 'pdf' : 'image',
+                mimeType: attachment.fileType,
+              });
+            }
+          }
+        }
+        
+        // Analisar documentos automaticamente e postar resumo no chat
+        if (documentsToAnalyze.length > 0) {
+          try {
+            const { invokeLLM } = await import('./_core/llm');
+            
+            for (const doc of documentsToAnalyze) {
+              let content: any[] = [];
+              
+              if (doc.fileType === 'pdf') {
+                content = [
+                  { type: 'text', text: `Analise este documento PDF "${doc.fileName}" e forneça um resumo conciso com os principais pontos, contexto e conclusões.` },
+                  { type: 'file_url', file_url: { url: doc.url, mime_type: 'application/pdf' } }
+                ];
+              } else if (doc.fileType === 'image') {
+                content = [
+                  { type: 'text', text: `Analise esta imagem "${doc.fileName}" e descreva seu conteúdo, contexto e principais informações.` },
+                  { type: 'image_url', image_url: { url: doc.url, detail: 'high' } }
+                ];
+              }
+              
+              const systemPrompt = `Você é o Papaya, assistente da comunidade PapayaNews. Analise o documento e crie um resumo útil para a comunidade.
+
+Formato da resposta:
+📝 **Resumo**: [2-3 frases sobre o conteúdo principal]
+📌 **Contexto**: [1-2 frases sobre o propósito/origem]
+🎯 **Destaques**: [3-5 pontos principais em lista]
+
+Seja conciso e foque em informações relevantes para profissionais de IA, startups e inovação.`;
+              
+              const response = await invokeLLM({
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  { role: 'user', content: content }
+                ],
+              });
+              
+              const aiSummary = response.choices[0]?.message?.content;
+              if (aiSummary && typeof aiSummary === 'string') {
+                // Postar resumo como resposta da IA no chat
+                await db.createChatMessage({
+                  userId: ctx.user.id,
+                  message: `🤖 **Análise automática de "${doc.fileName}"**\n\n${aiSummary}`,
+                  isAiResponse: 1,
+                  replyToId: null,
+                });
+              }
+            }
+          } catch (analysisError) {
+            console.error('Erro ao analisar documentos:', analysisError);
+            // Continua sem análise - não bloqueia o envio
           }
         }
         
@@ -1096,6 +1163,302 @@ Formato: Use emojis, seja breve e objetivo. Máximo 300 palavras.`;
       .mutation(async ({ input, ctx }) => {
         return db.removeConnection(input.connectionId, ctx.user.id);
       }),
+  }),
+
+  // Biblioteca de Documentos com Análise LLM
+  documents: router({
+    // Listar documentos
+    list: protectedProcedure
+      .input(z.object({
+        category: z.string().optional(),
+        limit: z.number().default(20),
+        offset: z.number().default(0),
+      }).optional())
+      .query(async ({ input }) => {
+        return db.getDocuments({
+          category: input?.category,
+          isPublic: true,
+          limit: input?.limit || 20,
+          offset: input?.offset || 0,
+        });
+      }),
+
+    // Meus documentos
+    myDocuments: protectedProcedure
+      .input(z.object({
+        limit: z.number().default(20),
+        offset: z.number().default(0),
+      }).optional())
+      .query(async ({ input, ctx }) => {
+        return db.getDocuments({
+          userId: ctx.user.id,
+          limit: input?.limit || 20,
+          offset: input?.offset || 0,
+        });
+      }),
+
+    // Obter documento por ID
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return db.getDocumentById(input.id);
+      }),
+
+    // Buscar documentos
+    search: protectedProcedure
+      .input(z.object({ query: z.string().min(2) }))
+      .query(async ({ input }) => {
+        return db.searchDocuments(input.query);
+      }),
+
+    // Upload de documento com análise LLM
+    upload: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1).max(255),
+        description: z.string().optional(),
+        fileName: z.string(),
+        fileData: z.string(), // Base64 encoded
+        fileType: z.string(),
+        fileSize: z.number().max(15 * 1024 * 1024, "Arquivo deve ter no máximo 15MB"),
+        mimeType: z.string(),
+        category: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        isPublic: z.boolean().default(true),
+        analyzeWithAI: z.boolean().default(true),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { storagePut } = await import('./storage');
+        
+        // Gerar chave única para o arquivo
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substring(2, 8);
+        const sanitizedFileName = input.fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const fileKey = `documents/${ctx.user.id}/${timestamp}-${randomSuffix}-${sanitizedFileName}`;
+        
+        // Converter base64 para buffer
+        const fileBuffer = Buffer.from(input.fileData, 'base64');
+        
+        // Upload para S3
+        const { url } = await storagePut(fileKey, fileBuffer, input.mimeType);
+        
+        // Determinar tipo de arquivo
+        let fileType = 'other';
+        if (input.mimeType.includes('pdf')) fileType = 'pdf';
+        else if (input.mimeType.includes('word') || input.mimeType.includes('document')) fileType = 'document';
+        else if (input.mimeType.includes('image')) fileType = 'image';
+        else if (input.mimeType.includes('spreadsheet') || input.mimeType.includes('excel')) fileType = 'spreadsheet';
+        else if (input.mimeType.includes('presentation') || input.mimeType.includes('powerpoint')) fileType = 'presentation';
+        else if (input.mimeType.includes('text')) fileType = 'text';
+        
+        // Criar registro no banco
+        await db.createDocument({
+          userId: ctx.user.id,
+          title: input.title,
+          description: input.description || null,
+          fileName: input.fileName,
+          fileUrl: url,
+          fileKey: fileKey,
+          fileType: fileType,
+          fileSize: input.fileSize,
+          mimeType: input.mimeType,
+          category: input.category || null,
+          tags: input.tags ? JSON.stringify(input.tags) : null,
+          isPublic: input.isPublic ? 1 : 0,
+        });
+        
+        // Buscar o documento recém criado
+        const docs = await db.getDocuments({ userId: ctx.user.id, limit: 1 });
+        const newDoc = docs[0];
+        
+        // Analisar com LLM se solicitado e se for um tipo suportado
+        if (input.analyzeWithAI && newDoc && ['pdf', 'image'].includes(fileType)) {
+          try {
+            const { invokeLLM } = await import('./_core/llm');
+            
+            // Preparar conteúdo para análise
+            let content: any[] = [];
+            
+            if (fileType === 'pdf') {
+              content = [
+                { type: 'text', text: `Analise este documento PDF chamado "${input.title}" e forneça um resumo estruturado.` },
+                { type: 'file_url', file_url: { url: url, mime_type: 'application/pdf' } }
+              ];
+            } else if (fileType === 'image') {
+              content = [
+                { type: 'text', text: `Analise esta imagem chamada "${input.title}" e descreva seu conteúdo.` },
+                { type: 'image_url', image_url: { url: url, detail: 'high' } }
+              ];
+            }
+            
+            const systemPrompt = `Você é um assistente especializado em análise de documentos para a comunidade PapayaNews.
+Sua tarefa é analisar o documento fornecido e criar um resumo estruturado.
+
+Resposta DEVE ser em JSON válido com esta estrutura:
+{
+  "summary": "Resumo conciso do documento em 2-3 parágrafos",
+  "context": "Contexto e propósito do documento",
+  "outcomes": "Principais conclusões, insights ou ações recomendadas"
+}
+
+Seja objetivo e foque nos pontos mais relevantes para profissionais de IA, startups e inovação.`;
+            
+            const response = await invokeLLM({
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: content }
+              ],
+              response_format: {
+                type: 'json_schema',
+                json_schema: {
+                  name: 'document_analysis',
+                  strict: true,
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      summary: { type: 'string', description: 'Resumo do documento' },
+                      context: { type: 'string', description: 'Contexto e propósito' },
+                      outcomes: { type: 'string', description: 'Conclusões e insights' }
+                    },
+                    required: ['summary', 'context', 'outcomes'],
+                    additionalProperties: false
+                  }
+                }
+              }
+            });
+            
+            const analysisText = response.choices[0]?.message?.content;
+            if (analysisText && typeof analysisText === 'string') {
+              try {
+                const analysis = JSON.parse(analysisText);
+                await db.updateDocumentAISummary(newDoc.id, {
+                  aiSummary: analysis.summary,
+                  aiContext: analysis.context,
+                  aiOutcomes: analysis.outcomes,
+                });
+              } catch (parseError) {
+                console.error('Erro ao parsear análise:', parseError);
+              }
+            }
+          } catch (aiError) {
+            console.error('Erro na análise com IA:', aiError);
+            // Continua sem análise - não bloqueia o upload
+          }
+        }
+        
+        return { success: true, documentId: newDoc?.id, url, fileKey };
+      }),
+
+    // Analisar documento existente com LLM
+    analyzeDocument: protectedProcedure
+      .input(z.object({ documentId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const doc = await db.getDocumentById(input.documentId);
+        
+        if (!doc) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Documento não encontrado' });
+        }
+        
+        // Verificar se o usuário tem permissão (dono ou admin)
+        if (doc.userId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Sem permissão para analisar este documento' });
+        }
+        
+        // Verificar tipo suportado
+        if (!['pdf', 'image'].includes(doc.fileType)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Tipo de arquivo não suportado para análise' });
+        }
+        
+        try {
+          const { invokeLLM } = await import('./_core/llm');
+          
+          let content: any[] = [];
+          
+          if (doc.fileType === 'pdf') {
+            content = [
+              { type: 'text', text: `Analise este documento PDF chamado "${doc.title}" e forneça um resumo estruturado.` },
+              { type: 'file_url', file_url: { url: doc.fileUrl, mime_type: 'application/pdf' } }
+            ];
+          } else if (doc.fileType === 'image') {
+            content = [
+              { type: 'text', text: `Analise esta imagem chamada "${doc.title}" e descreva seu conteúdo.` },
+              { type: 'image_url', image_url: { url: doc.fileUrl, detail: 'high' } }
+            ];
+          }
+          
+          const systemPrompt = `Você é um assistente especializado em análise de documentos para a comunidade PapayaNews.
+Sua tarefa é analisar o documento fornecido e criar um resumo estruturado.
+
+Resposta DEVE ser em JSON válido com esta estrutura:
+{
+  "summary": "Resumo conciso do documento em 2-3 parágrafos",
+  "context": "Contexto e propósito do documento",
+  "outcomes": "Principais conclusões, insights ou ações recomendadas"
+}
+
+Seja objetivo e foque nos pontos mais relevantes para profissionais de IA, startups e inovação.`;
+          
+          const response = await invokeLLM({
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: content }
+            ],
+            response_format: {
+              type: 'json_schema',
+              json_schema: {
+                name: 'document_analysis',
+                strict: true,
+                schema: {
+                  type: 'object',
+                  properties: {
+                    summary: { type: 'string', description: 'Resumo do documento' },
+                    context: { type: 'string', description: 'Contexto e propósito' },
+                    outcomes: { type: 'string', description: 'Conclusões e insights' }
+                  },
+                  required: ['summary', 'context', 'outcomes'],
+                  additionalProperties: false
+                }
+              }
+            }
+          });
+          
+          const analysisText = response.choices[0]?.message?.content;
+          if (analysisText && typeof analysisText === 'string') {
+            const analysis = JSON.parse(analysisText);
+            await db.updateDocumentAISummary(input.documentId, {
+              aiSummary: analysis.summary,
+              aiContext: analysis.context,
+              aiOutcomes: analysis.outcomes,
+            });
+            
+            return { success: true, analysis };
+          }
+          
+          throw new Error('Resposta inválida da IA');
+        } catch (error) {
+          console.error('Erro na análise:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Erro ao analisar documento' });
+        }
+      }),
+
+    // Registrar download
+    registerDownload: protectedProcedure
+      .input(z.object({ documentId: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.incrementDocumentDownload(input.documentId);
+        return { success: true };
+      }),
+
+    // Deletar documento
+    delete: protectedProcedure
+      .input(z.object({ documentId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        return db.deleteDocument(input.documentId, ctx.user.id);
+      }),
+
+    // Estatísticas da biblioteca
+    getStats: protectedProcedure.query(async () => {
+      return db.getDocumentStats();
+    }),
   }),
 });
 

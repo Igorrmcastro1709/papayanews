@@ -16,6 +16,7 @@ import Calendar from "./pages/Calendar";
 import UserProfile from "./pages/UserProfile";
 import Members from "./pages/Members";
 import Archive from "./pages/Archive";
+import Library from "./pages/Library";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/user/:id" component={UserProfile} />
       <Route path="/members" component={Members} />
       <Route path="/archive" component={Archive} />
+      <Route path="/library" component={Library} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

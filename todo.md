@@ -234,3 +234,12 @@
 - [x] Adicionar CTA de cadastro para desbloquear arquivo completo
 - [x] Adicionar filtros por categoria e data para membros
 - [x] Testar funcionalidades
+
+## Integração LLM para Documentos e Biblioteca
+- [x] Atualizar limite de upload para 15MB
+- [x] Criar schema para biblioteca de documentos com resumos
+- [x] Implementar análise de documentos com LLM (PDF, Word, imagens)
+- [x] Gerar resumo automático com contexto e outcomes
+- [x] Criar página de biblioteca de documentos pesquisável
+- [x] Integrar resumo automático quando arquivo é enviado no chat
+- [x] Testar funcionalidades

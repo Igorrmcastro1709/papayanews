@@ -345,4 +345,34 @@ export const userConnections = mysqlTable("user_connections", {
 export type UserConnection = typeof userConnections.$inferSelect;
 export type InsertUserConnection = typeof userConnections.$inferInsert;
 
+// Biblioteca de Documentos da Comunidade
+export const documentLibrary = mysqlTable("document_library", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(), // Quem fez upload
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileUrl: varchar("file_url", { length: 500 }).notNull(),
+  fileKey: varchar("file_key", { length: 500 }).notNull(), // S3 key
+  fileType: varchar("file_type", { length: 100 }).notNull(), // pdf, docx, image, etc
+  fileSize: int("file_size").notNull(), // em bytes
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  category: varchar("category", { length: 100 }), // Categoria do documento
+  tags: text("tags"), // JSON array de tags
+  // Resumo gerado pela IA
+  aiSummary: text("ai_summary"),
+  aiContext: text("ai_context"), // Contexto extraído pela IA
+  aiOutcomes: text("ai_outcomes"), // Principais conclusões/outcomes
+  aiProcessedAt: timestamp("ai_processed_at"),
+  // Metadados
+  downloadCount: int("download_count").default(0).notNull(),
+  isPublic: int("is_public").default(1).notNull(), // 1 = visível para todos, 0 = privado
+  chatMessageId: int("chat_message_id"), // Referência à mensagem do chat (se veio do chat)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DocumentLibrary = typeof documentLibrary.$inferSelect;
+export type InsertDocumentLibrary = typeof documentLibrary.$inferInsert;
+
 // TODO: Add your tables here

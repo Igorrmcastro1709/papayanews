@@ -1,6 +1,6 @@
 import { eq, and, gte, count, sql, desc, or, lte, between } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress, chatMessages, InsertChatMessage, chatAttachments, InsertChatAttachment, dailySummaries, InsertDailySummary, userProfiles, InsertUserProfile, userConnections, InsertUserConnection } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress, chatMessages, InsertChatMessage, chatAttachments, InsertChatAttachment, dailySummaries, InsertDailySummary, userProfiles, InsertUserProfile, userConnections, InsertUserConnection, documentLibrary, InsertDocumentLibrary } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
 import { sendVerificationEmail as sendVerificationEmailResend } from './_core/email';
@@ -1621,3 +1621,225 @@ export async function removeConnection(connectionId: number, userId: number) {
 }
 
 // TODO: add feature queries here as your schema grows.
+
+
+// ==================== Biblioteca de Documentos ====================
+
+export async function createDocument(data: InsertDocumentLibrary) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(documentLibrary).values(data);
+  return result;
+}
+
+export async function getDocuments(options?: { 
+  category?: string; 
+  userId?: number; 
+  isPublic?: boolean;
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  let query = db
+    .select({
+      id: documentLibrary.id,
+      userId: documentLibrary.userId,
+      title: documentLibrary.title,
+      description: documentLibrary.description,
+      fileName: documentLibrary.fileName,
+      fileUrl: documentLibrary.fileUrl,
+      fileKey: documentLibrary.fileKey,
+      fileType: documentLibrary.fileType,
+      fileSize: documentLibrary.fileSize,
+      mimeType: documentLibrary.mimeType,
+      category: documentLibrary.category,
+      tags: documentLibrary.tags,
+      aiSummary: documentLibrary.aiSummary,
+      aiContext: documentLibrary.aiContext,
+      aiOutcomes: documentLibrary.aiOutcomes,
+      aiProcessedAt: documentLibrary.aiProcessedAt,
+      downloadCount: documentLibrary.downloadCount,
+      isPublic: documentLibrary.isPublic,
+      chatMessageId: documentLibrary.chatMessageId,
+      createdAt: documentLibrary.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(documentLibrary)
+    .leftJoin(users, eq(documentLibrary.userId, users.id))
+    .orderBy(desc(documentLibrary.createdAt));
+
+  const conditions = [];
+  
+  if (options?.category) {
+    conditions.push(eq(documentLibrary.category, options.category));
+  }
+  
+  if (options?.userId) {
+    conditions.push(eq(documentLibrary.userId, options.userId));
+  }
+  
+  if (options?.isPublic !== undefined) {
+    conditions.push(eq(documentLibrary.isPublic, options.isPublic ? 1 : 0));
+  }
+
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions)) as typeof query;
+  }
+
+  if (options?.limit) {
+    query = query.limit(options.limit) as typeof query;
+  }
+
+  if (options?.offset) {
+    query = query.offset(options.offset) as typeof query;
+  }
+
+  return query;
+}
+
+export async function getDocumentById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select({
+      id: documentLibrary.id,
+      userId: documentLibrary.userId,
+      title: documentLibrary.title,
+      description: documentLibrary.description,
+      fileName: documentLibrary.fileName,
+      fileUrl: documentLibrary.fileUrl,
+      fileKey: documentLibrary.fileKey,
+      fileType: documentLibrary.fileType,
+      fileSize: documentLibrary.fileSize,
+      mimeType: documentLibrary.mimeType,
+      category: documentLibrary.category,
+      tags: documentLibrary.tags,
+      aiSummary: documentLibrary.aiSummary,
+      aiContext: documentLibrary.aiContext,
+      aiOutcomes: documentLibrary.aiOutcomes,
+      aiProcessedAt: documentLibrary.aiProcessedAt,
+      downloadCount: documentLibrary.downloadCount,
+      isPublic: documentLibrary.isPublic,
+      chatMessageId: documentLibrary.chatMessageId,
+      createdAt: documentLibrary.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(documentLibrary)
+    .leftJoin(users, eq(documentLibrary.userId, users.id))
+    .where(eq(documentLibrary.id, id))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+export async function updateDocumentAISummary(id: number, data: {
+  aiSummary: string;
+  aiContext: string;
+  aiOutcomes: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+
+  await db.update(documentLibrary)
+    .set({
+      aiSummary: data.aiSummary,
+      aiContext: data.aiContext,
+      aiOutcomes: data.aiOutcomes,
+      aiProcessedAt: new Date(),
+    })
+    .where(eq(documentLibrary.id, id));
+
+  return { success: true };
+}
+
+export async function incrementDocumentDownload(id: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(documentLibrary)
+    .set({ downloadCount: sql`${documentLibrary.downloadCount} + 1` })
+    .where(eq(documentLibrary.id, id));
+}
+
+export async function searchDocuments(query: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      id: documentLibrary.id,
+      userId: documentLibrary.userId,
+      title: documentLibrary.title,
+      description: documentLibrary.description,
+      fileName: documentLibrary.fileName,
+      fileUrl: documentLibrary.fileUrl,
+      fileType: documentLibrary.fileType,
+      fileSize: documentLibrary.fileSize,
+      category: documentLibrary.category,
+      aiSummary: documentLibrary.aiSummary,
+      createdAt: documentLibrary.createdAt,
+      userName: users.name,
+    })
+    .from(documentLibrary)
+    .leftJoin(users, eq(documentLibrary.userId, users.id))
+    .where(
+      and(
+        eq(documentLibrary.isPublic, 1),
+        or(
+          sql`LOWER(${documentLibrary.title}) LIKE LOWER(${`%${query}%`})`,
+          sql`LOWER(${documentLibrary.description}) LIKE LOWER(${`%${query}%`})`,
+          sql`LOWER(${documentLibrary.aiSummary}) LIKE LOWER(${`%${query}%`})`,
+          sql`LOWER(${documentLibrary.fileName}) LIKE LOWER(${`%${query}%`})`
+        )
+      )
+    )
+    .orderBy(desc(documentLibrary.createdAt))
+    .limit(20);
+}
+
+export async function deleteDocument(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return { success: false };
+
+  // Verificar se o documento pertence ao usuário
+  const doc = await db
+    .select()
+    .from(documentLibrary)
+    .where(and(eq(documentLibrary.id, id), eq(documentLibrary.userId, userId)))
+    .limit(1);
+
+  if (doc.length === 0) {
+    return { success: false, error: 'Documento não encontrado ou sem permissão' };
+  }
+
+  await db.delete(documentLibrary).where(eq(documentLibrary.id, id));
+  return { success: true };
+}
+
+export async function getDocumentStats() {
+  const db = await getDb();
+  if (!db) return { total: 0, totalSize: 0, byCategory: [] };
+
+  const total = await db.select({ count: count() }).from(documentLibrary);
+  const totalSize = await db.select({ sum: sql<number>`SUM(${documentLibrary.fileSize})` }).from(documentLibrary);
+  
+  const byCategory = await db
+    .select({
+      category: documentLibrary.category,
+      count: count(),
+    })
+    .from(documentLibrary)
+    .groupBy(documentLibrary.category);
+
+  return {
+    total: total[0]?.count || 0,
+    totalSize: totalSize[0]?.sum || 0,
+    byCategory,
+  };
+}
