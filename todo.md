@@ -261,3 +261,6 @@
 - [x] Manter apenas botões de login com Google/LinkedIn/Email
 - [x] Extrair lista de emails verificados para contato (todos eram emails de teste automatizado)
 - [x] Testar novo fluxo simplificado
+
+## Correção de SEO
+- [x] Atualizar título da página inicial para ter entre 30-60 caracteres (52 caracteres)

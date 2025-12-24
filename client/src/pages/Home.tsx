@@ -12,13 +12,18 @@ import {
   Menu,
   X
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 
 export default function Home() {
   const { user, loading, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // SEO: Título otimizado (30-60 caracteres)
+  useEffect(() => {
+    document.title = "PapayaNews - Comunidade de IA, Startups e Inovação";
+  }, []);
   
 
 
