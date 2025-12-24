@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, name, email, role FROM users ORDER BY id DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4LQkoHrXi2eNL4X.root --database ZAeLPjMN389Z2yRsdgzntV --execute SELECT id, name, email, role FROM users ORDER BY id DESC LIMIT 20;",
+  "rows": [
+    {
+      "id": "330001",
+      "name": "Igor Castro",
+      "email": "igorrmcastro@gmail.com",
+      "role": "user"
+    },
+    {
+      "id": "1",
+      "name": "Heitor Castroviejo",
+      "email": "heitor.castroviejo@aluno.colegioser.com.br",
+      "role": "admin"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\n330001\tIgor Castro\tigorrmcastro@gmail.com\tuser\n1\tHeitor Castroviejo\theitor.castroviejo@aluno.colegioser.com.br\tadmin\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}

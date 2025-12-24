@@ -243,3 +243,21 @@
 - [x] Criar página de biblioteca de documentos pesquisável
 - [x] Integrar resumo automático quando arquivo é enviado no chat
 - [x] Testar funcionalidades
+
+## Investigação do Fluxo de Cadastro
+- [x] Verificar quantos usuários estão cadastrados no banco
+- [x] Verificar solicitações de cadastro pendentes
+- [x] Testar fluxo completo de cadastro como novo usuário
+- [x] Identificar problemas encontrados
+
+### Descobertas:
+- 2 usuários cadastrados (Heitor e Igor)
+- 132 solicitações de cadastro (70 não verificadas, 62 verificadas)
+- Emails NÃO estão sendo enviados (TODO no código)
+- Código aparece na tela em modo dev, mas usuários reais não recebem por email
+
+## Simplificação do Fluxo de Cadastro
+- [x] Remover etapa de verificação por código da landing page
+- [x] Manter apenas botões de login com Google/LinkedIn/Email
+- [x] Extrair lista de emails verificados para contato (todos eram emails de teste automatizado)
+- [x] Testar novo fluxo simplificado
