@@ -27,7 +27,8 @@ import {
   MessageCircle,
   Users,
   Archive,
-  FolderOpen
+  FolderOpen,
+  ShoppingBag
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
@@ -144,6 +145,10 @@ export default function Dashboard() {
                 <FolderOpen className="h-4 w-4 mr-2" />
                 Biblioteca
               </Button>
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/shop")}>
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                Loja
+              </Button>
               <NotificationBell />
               <Button variant="ghost" size="sm" onClick={() => setLocation("/profile")}>
                 <User className="h-4 w-4 mr-2" />
@@ -188,6 +193,9 @@ export default function Dashboard() {
             </Button>
             <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/library"); setMobileMenuOpen(false); }}>
               <FolderOpen className="h-4 w-4 mr-2" /> Biblioteca
+            </Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/shop"); setMobileMenuOpen(false); }}>
+              <ShoppingBag className="h-4 w-4 mr-2" /> Loja
             </Button>
             <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/profile"); setMobileMenuOpen(false); }}>
               <User className="h-4 w-4 mr-2" /> Meu Perfil

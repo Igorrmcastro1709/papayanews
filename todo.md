@@ -277,3 +277,6 @@
 - [x] Implementar carrinho e checkout por pontos
 - [x] Adicionar gestão de produtos no painel Admin
 - [x] Testar funcionalidades
+
+## Link da Papaya Shop no Menu
+- [x] Adicionar link da Shop no menu de navegação do Dashboard
