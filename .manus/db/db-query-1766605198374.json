@@ -1,0 +1,310 @@
+{
+  "query": "SELECT DISTINCT email, name, verified, created_at \nFROM signup_requests \nORDER BY created_at DESC\nLIMIT 50;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4LQkoHrXi2eNL4X.root --database ZAeLPjMN389Z2yRsdgzntV --execute SELECT DISTINCT email, name, verified, created_at \nFROM signup_requests \nORDER BY created_at DESC\nLIMIT 50;",
+  "rows": [
+    {
+      "email": "wrong-code-1766604457488@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 19:27:37"
+    },
+    {
+      "email": "used-code-1766604457728@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 19:27:37"
+    },
+    {
+      "email": "verify-db-1766604457249@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 19:27:37"
+    },
+    {
+      "email": "db-test-1766604457057@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 19:27:37"
+    },
+    {
+      "email": "verify-1766604456777@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 19:27:36"
+    },
+    {
+      "email": "test-1766604456326@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 19:27:36"
+    },
+    {
+      "email": "wrong-code-1766600428075@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 18:20:28"
+    },
+    {
+      "email": "used-code-1766600428213@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 18:20:28"
+    },
+    {
+      "email": "verify-db-1766600427878@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 18:20:27"
+    },
+    {
+      "email": "db-test-1766600427729@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 18:20:27"
+    },
+    {
+      "email": "test-1766600427115@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 18:20:27"
+    },
+    {
+      "email": "verify-1766600427494@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 18:20:27"
+    },
+    {
+      "email": "verify-db-1766600417084@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 18:20:17"
+    },
+    {
+      "email": "test-1766600416345@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 18:20:16"
+    },
+    {
+      "email": "db-test-1766600416935@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 18:20:16"
+    },
+    {
+      "email": "verify-1766600416738@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 18:20:16"
+    },
+    {
+      "email": "verify-db-1766586445248@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 14:27:25"
+    },
+    {
+      "email": "db-test-1766586444997@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 14:27:25"
+    },
+    {
+      "email": "used-code-1766586445789@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 14:27:25"
+    },
+    {
+      "email": "wrong-code-1766586445454@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 14:27:25"
+    },
+    {
+      "email": "test-1766586444163@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 14:27:24"
+    },
+    {
+      "email": "verify-1766586444556@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 14:27:24"
+    },
+    {
+      "email": "db-test-1766586433602@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 14:27:13"
+    },
+    {
+      "email": "verify-db-1766586433813@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 14:27:13"
+    },
+    {
+      "email": "test-1766586432929@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 14:27:13"
+    },
+    {
+      "email": "verify-1766586433347@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 14:27:13"
+    },
+    {
+      "email": "used-code-1766579385435@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 12:29:45"
+    },
+    {
+      "email": "wrong-code-1766579385128@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 12:29:45"
+    },
+    {
+      "email": "verify-db-1766579384829@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 12:29:44"
+    },
+    {
+      "email": "verify-1766579384122@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-24 12:29:44"
+    },
+    {
+      "email": "db-test-1766579384550@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 12:29:44"
+    },
+    {
+      "email": "test-1766579382815@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-24 12:29:43"
+    },
+    {
+      "email": "used-code-1766528402407@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-23 22:20:02"
+    },
+    {
+      "email": "wrong-code-1766528402129@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-23 22:20:02"
+    },
+    {
+      "email": "verify-db-1766528401895@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-23 22:20:01"
+    },
+    {
+      "email": "verify-1766528401258@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-23 22:20:01"
+    },
+    {
+      "email": "db-test-1766528401591@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-23 22:20:01"
+    },
+    {
+      "email": "test-1766528400804@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-23 22:20:00"
+    },
+    {
+      "email": "verify-db-1766528394539@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-23 22:19:54"
+    },
+    {
+      "email": "verify-1766528394093@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-23 22:19:54"
+    },
+    {
+      "email": "db-test-1766528394345@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-23 22:19:54"
+    },
+    {
+      "email": "test-1766528393705@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-23 22:19:53"
+    },
+    {
+      "email": "used-code-1766525828669@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-23 21:37:08"
+    },
+    {
+      "email": "db-test-1766525828019@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-23 21:37:08"
+    },
+    {
+      "email": "verify-db-1766525828186@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-23 21:37:08"
+    },
+    {
+      "email": "wrong-code-1766525828423@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-23 21:37:08"
+    },
+    {
+      "email": "test-1766525827213@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-23 21:37:07"
+    },
+    {
+      "email": "verify-1766525827706@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-23 21:37:07"
+    },
+    {
+      "email": "verify-db-1766522809437@papayanews.com",
+      "name": "Test User",
+      "verified": "1",
+      "created_at": "2025-12-23 20:46:49"
+    },
+    {
+      "email": "wrong-code-1766522809659@papayanews.com",
+      "name": "Test User",
+      "verified": "0",
+      "created_at": "2025-12-23 20:46:49"
+    }
+  ],
+  "messages": [],
+  "stdout": "email\tname\tverified\tcreated_at\nwrong-code-1766604457488@papayanews.com\tTest User\t0\t2025-12-24 19:27:37\nused-code-1766604457728@papayanews.com\tTest User\t1\t2025-12-24 19:27:37\nverify-db-1766604457249@papayanews.com\tTest User\t1\t2025-12-24 19:27:37\ndb-test-1766604457057@papayanews.com\tTest User\t0\t2025-12-24 19:27:37\nverify-1766604456777@papayanews.com\tTest User\t1\t2025-12-24 19:27:36\ntest-1766604456326@papayanews.com\tTest User\t0\t2025-12-24 19:27:36\nwrong-code-1766600428075@papayanews.com\tTest User\t0\t2025-12-24 18:20:28\nused-code-1766600428213@papayanews.com\tTest User\t1\t2025-12-24 18:20:28\nverify-db-1766600427878@papayanews.com\tTest User\t1\t2025-12-24 18:20:27\ndb-test-1766600427729@papayanews.com\tTest User\t0\t2025-12-24 18:20:27\ntest-1766600427115@papayanews.com\tTest User\t0\t2025-12-24 18:20:27\nverify-1766600427494@papayanews.com\tTest User\t1\t2025-12-24 18:20:27\nverify-db-1766600417084@papayanews.com\tTest User\t0\t2025-12-24 18:20:17\ntest-1766600416345@papayanews.com\tTest User\t0\t2025-12-24 18:20:16\ndb-test-1766600416935@papayanews.com\tTest User\t0\t2025-12-24 18:20:16\nverify-1766600416738@papayanews.com\tTest User\t1\t2025-12-24 18:20:16\nverify-db-1766586445248@papayanews.com\tTest User\t1\t2025-12-24 14:27:25\ndb-test-1766586444997@papayanews.com\tTest User\t0\t2025-12-24 14:27:25\nused-code-1766586445789@papayanews.com\tTest User\t1\t2025-12-24 14:27:25\nwrong-code-1766586445454@papayanews.com\tTest User\t0\t2025-12-24 14:27:25\ntest-1766586444163@papayanews.com\tTest User\t0\t2025-12-24 14:27:24\nverify-1766586444556@papayanews.com\tTest User\t1\t2025-12-24 14:27:24\ndb-test-1766586433602@papayanews.com\tTest User\t0\t2025-12-24 14:27:13\nverify-db-1766586433813@papayanews.com\tTest User\t0\t2025-12-24 14:27:13\ntest-1766586432929@papayanews.com\tTest User\t0\t2025-12-24 14:27:13\nverify-1766586433347@papayanews.com\tTest User\t1\t2025-12-24 14:27:13\nused-code-1766579385435@papayanews.com\tTest User\t1\t2025-12-24 12:29:45\nwrong-code-1766579385128@papayanews.com\tTest User\t0\t2025-12-24 12:29:45\nverify-db-1766579384829@papayanews.com\tTest User\t1\t2025-12-24 12:29:44\nverify-1766579384122@papayanews.com\tTest User\t1\t2025-12-24 12:29:44\ndb-test-1766579384550@papayanews.com\tTest User\t0\t2025-12-24 12:29:44\ntest-1766579382815@papayanews.com\tTest User\t0\t2025-12-24 12:29:43\nused-code-1766528402407@papayanews.com\tTest User\t1\t2025-12-23 22:20:02\nwrong-code-1766528402129@papayanews.com\tTest User\t0\t2025-12-23 22:20:02\nverify-db-1766528401895@papayanews.com\tTest User\t1\t2025-12-23 22:20:01\nverify-1766528401258@papayanews.com\tTest User\t1\t2025-12-23 22:20:01\ndb-test-1766528401591@papayanews.com\tTest User\t0\t2025-12-23 22:20:01\ntest-1766528400804@papayanews.com\tTest User\t0\t2025-12-23 22:20:00\nverify-db-1766528394539@papayanews.com\tTest User\t0\t2025-12-23 22:19:54\nverify-1766528394093@papayanews.com\tTest User\t1\t2025-12-23 22:19:54\ndb-test-1766528394345@papayanews.com\tTest User\t0\t2025-12-23 22:19:54\ntest-1766528393705@papayanews.com\tTest User\t0\t2025-12-23 22:19:53\nused-code-1766525828669@papayanews.com\tTest User\t1\t2025-12-23 21:37:08\ndb-test-1766525828019@papayanews.com\tTest User\t0\t2025-12-23 21:37:08\nverify-db-1766525828186@papayanews.com\tTest User\t1\t2025-12-23 21:37:08\nwrong-code-1766525828423@papayanews.com\tTest User\t0\t2025-12-23 21:37:08\ntest-1766525827213@papayanews.com\tTest User\t0\t2025-12-23 21:37:07\nverify-1766525827706@papayanews.com\tTest User\t1\t2025-12-23 21:37:07\nverify-db-1766522809437@papayanews.com\tTest User\t1\t2025-12-23 20:46:49\nwrong-code-1766522809659@papayanews.com\tTest User\t0\t2025-12-23 20:46:49\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}

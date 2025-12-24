@@ -264,3 +264,16 @@
 
 ## Correção de SEO
 - [x] Atualizar título da página inicial para ter entre 30-60 caracteres (52 caracteres)
+
+## Correção do Sistema de Conexões
+- [x] Investigar problema na aceitação de pedidos de amizade
+- [x] Sistema funcionando corretamente - conexão já aceita no banco
+- [x] Testar funcionalidade - Igor Castro aparece na lista de conexões
+
+## Papaya Shop - Loja de Recompensas
+- [x] Criar schema do banco para produtos e pedidos
+- [x] Implementar rotas tRPC para listagem e resgate de produtos
+- [x] Criar página da loja com catálogo visual
+- [x] Implementar carrinho e checkout por pontos
+- [x] Adicionar gestão de produtos no painel Admin
+- [x] Testar funcionalidades

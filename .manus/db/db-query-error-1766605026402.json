@@ -1,0 +1,8 @@
+{
+  "query": "SELECT c.id, c.requester_id, c.receiver_id, c.status, c.created_at, \n       u1.name as requester_name, u1.open_id as requester_open_id,\n       u2.name as receiver_name, u2.open_id as receiver_open_id\nFROM user_connections c \nLEFT JOIN users u1 ON c.requester_id = u1.id \nLEFT JOIN users u2 ON c.receiver_id = u2.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4LQkoHrXi2eNL4X.root --database ZAeLPjMN389Z2yRsdgzntV --execute SELECT c.id, c.requester_id, c.receiver_id, c.status, c.created_at, \n       u1.name as requester_name, u1.open_id as requester_open_id,\n       u2.name as receiver_name, u2.open_id as receiver_open_id\nFROM user_connections c \nLEFT JOIN users u1 ON c.requester_id = u1.id \nLEFT JOIN users u2 ON c.receiver_id = u2.id;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'u1.open_id' in 'field list'"
+  ]
+}

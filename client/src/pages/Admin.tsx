@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Calendar, Link as LinkIcon } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Calendar, Link as LinkIcon, ShoppingBag, Package } from "lucide-react";
 import NewsletterEditor from "@/components/NewsletterEditor";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -15,7 +15,7 @@ import { toast } from "sonner";
 export default function Admin() {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState<"content" | "events" | "analytics" | "newsletter">("content");
+  const [activeTab, setActiveTab] = useState<"content" | "events" | "analytics" | "newsletter" | "shop">("content");
 
   // Estados para formulários
   const [contentForm, setContentForm] = useState({
@@ -35,6 +35,18 @@ export default function Admin() {
 
   const [editingContent, setEditingContent] = useState<number | null>(null);
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
+  const [editingProduct, setEditingProduct] = useState<number | null>(null);
+  const [productForm, setProductForm] = useState({
+    name: "",
+    description: "",
+    imageUrl: "",
+    category: "physical" as "physical" | "digital" | "experience" | "badge",
+    pointsPrice: 100,
+    cashPrice: 0,
+    stock: 10,
+    minLevel: 1,
+    isLimited: false,
+  });
   const [newsletterForm, setNewsletterForm] = useState<{
     editing: boolean;
     id: number | null;
@@ -65,6 +77,14 @@ export default function Admin() {
 
   const { data: newsletters, refetch: refetchNewsletters } = trpc.newsletter.list.useQuery(undefined, {
     enabled: user?.role === "admin" && activeTab === "newsletter",
+  });
+
+  const { data: products, refetch: refetchProducts } = trpc.shop.getProducts.useQuery(undefined, {
+    enabled: user?.role === "admin" && activeTab === "shop",
+  });
+
+  const { data: shopOrders } = trpc.shop.getAllOrders.useQuery(undefined, {
+    enabled: user?.role === "admin" && activeTab === "shop",
   });
 
   // Mutations - Conteúdos
@@ -168,6 +188,49 @@ export default function Admin() {
     },
   });
 
+  // Mutations - Produtos
+  const createProduct = trpc.shop.createProduct.useMutation({
+    onSuccess: () => {
+      toast.success("Produto criado com sucesso!");
+      refetchProducts();
+      setProductForm({ name: "", description: "", imageUrl: "", category: "physical", pointsPrice: 100, cashPrice: 0, stock: 10, minLevel: 1, isLimited: false });
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erro ao criar produto");
+    },
+  });
+
+  const updateProduct = trpc.shop.updateProduct.useMutation({
+    onSuccess: () => {
+      toast.success("Produto atualizado com sucesso!");
+      refetchProducts();
+      setEditingProduct(null);
+      setProductForm({ name: "", description: "", imageUrl: "", category: "physical", pointsPrice: 100, cashPrice: 0, stock: 10, minLevel: 1, isLimited: false });
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erro ao atualizar produto");
+    },
+  });
+
+  const deleteProduct = trpc.shop.deleteProduct.useMutation({
+    onSuccess: () => {
+      toast.success("Produto removido com sucesso!");
+      refetchProducts();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erro ao remover produto");
+    },
+  });
+
+  const updateOrderStatus = trpc.shop.updateOrderStatus.useMutation({
+    onSuccess: () => {
+      toast.success("Status atualizado!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Erro ao atualizar status");
+    },
+  });
+
   // Handlers
   const handleCreateContent = () => {
     if (!contentForm.title || !contentForm.link) {
@@ -210,6 +273,41 @@ export default function Admin() {
     } else {
       createEvent.mutate(eventData);
     }
+  };
+
+  const handleCreateProduct = () => {
+    if (!productForm.name) {
+      toast.error("Preencha o nome do produto");
+      return;
+    }
+
+    const data = {
+      ...productForm,
+      isLimited: productForm.isLimited,
+      isActive: true,
+    };
+
+    if (editingProduct) {
+      updateProduct.mutate({ id: editingProduct, ...data });
+    } else {
+      createProduct.mutate(data);
+    }
+  };
+
+  const handleEditProduct = (product: any) => {
+    setEditingProduct(product.id);
+    setProductForm({
+      name: product.name,
+      description: product.description || "",
+      imageUrl: product.imageUrl || "",
+      category: product.category,
+      pointsPrice: product.pointsPrice,
+      cashPrice: product.cashPrice || 0,
+      stock: product.stock,
+      minLevel: product.minLevel,
+      isLimited: product.isLimited === 1,
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleEditEvent = (event: any) => {
@@ -298,6 +396,13 @@ export default function Admin() {
               onClick={() => setActiveTab("newsletter")}
             >
               Newsletter
+            </Button>
+            <Button
+              variant={activeTab === "shop" ? "default" : "outline"}
+              onClick={() => setActiveTab("shop")}
+            >
+              <ShoppingBag className="h-4 w-4 mr-2" />
+              Loja
             </Button>
         </div>
 
@@ -737,6 +842,238 @@ export default function Admin() {
                 </CardContent>
               </Card>
             )}
+          </div>
+        )}
+
+        {/* Shop Tab */}
+        {activeTab === "shop" && (
+          <div className="space-y-8">
+            {/* Formulário de Produto */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{editingProduct ? "Editar Produto" : "Novo Produto"}</CardTitle>
+                <CardDescription>
+                  Adicione produtos para a Papaya Shop
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="product-name">Nome *</Label>
+                    <Input
+                      id="product-name"
+                      value={productForm.name}
+                      onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                      placeholder="Nome do produto"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="product-category">Categoria</Label>
+                    <Select
+                      value={productForm.category}
+                      onValueChange={(value: any) => setProductForm({ ...productForm, category: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="physical">Físico</SelectItem>
+                        <SelectItem value="digital">Digital</SelectItem>
+                        <SelectItem value="experience">Experiência</SelectItem>
+                        <SelectItem value="badge">Badge</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="product-description">Descrição</Label>
+                  <Textarea
+                    id="product-description"
+                    value={productForm.description}
+                    onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                    placeholder="Descrição do produto"
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="product-image">URL da Imagem</Label>
+                  <Input
+                    id="product-image"
+                    value={productForm.imageUrl}
+                    onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
+                    placeholder="https://..."
+                  />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="product-points">Preço (Pontos)</Label>
+                    <Input
+                      id="product-points"
+                      type="number"
+                      value={productForm.pointsPrice}
+                      onChange={(e) => setProductForm({ ...productForm, pointsPrice: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="product-stock">Estoque</Label>
+                    <Input
+                      id="product-stock"
+                      type="number"
+                      value={productForm.stock}
+                      onChange={(e) => setProductForm({ ...productForm, stock: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="product-level">Nível Mínimo</Label>
+                    <Input
+                      id="product-level"
+                      type="number"
+                      value={productForm.minLevel}
+                      onChange={(e) => setProductForm({ ...productForm, minLevel: parseInt(e.target.value) || 1 })}
+                    />
+                  </div>
+                  <div className="space-y-2 flex items-end">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={productForm.isLimited}
+                        onChange={(e) => setProductForm({ ...productForm, isLimited: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span>Edição Limitada</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleCreateProduct} disabled={createProduct.isPending || updateProduct.isPending}>
+                    {createProduct.isPending || updateProduct.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
+                    {editingProduct ? "Atualizar" : "Adicionar"}
+                  </Button>
+                  {editingProduct && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditingProduct(null);
+                        setProductForm({ name: "", description: "", imageUrl: "", category: "physical", pointsPrice: 100, cashPrice: 0, stock: 10, minLevel: 1, isLimited: false });
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Lista de Produtos */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Produtos Cadastrados</CardTitle>
+                <CardDescription>{products?.length || 0} produtos na loja</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {products && products.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {products.map((product: any) => (
+                      <Card key={product.id} className="overflow-hidden">
+                        <div className="aspect-video bg-muted flex items-center justify-center">
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Package className="h-12 w-12 text-muted-foreground/30" />
+                          )}
+                        </div>
+                        <CardContent className="p-4">
+                          <h4 className="font-semibold">{product.name}</h4>
+                          <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="font-bold text-primary">{product.pointsPrice} pts</span>
+                            <span className="text-sm text-muted-foreground">Estoque: {product.stock}</span>
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            <Button size="sm" variant="outline" onClick={() => handleEditProduct(product)}>
+                              <Pencil className="h-3 w-3 mr-1" /> Editar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                if (confirm("Remover este produto?")) {
+                                  deleteProduct.mutate({ id: product.id });
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3 text-red-500" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <ShoppingBag className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                    <p>Nenhum produto cadastrado</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Pedidos */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Pedidos Recentes</CardTitle>
+                <CardDescription>Gerencie os pedidos da loja</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {shopOrders && shopOrders.length > 0 ? (
+                  <div className="space-y-4">
+                    {shopOrders.map((order: any) => (
+                      <div key={order.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold">{order.productName}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {order.userName} - {order.pointsSpent} pontos
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(order.createdAt).toLocaleDateString("pt-BR")}
+                            </p>
+                          </div>
+                          <Select
+                            value={order.status}
+                            onValueChange={(value: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled") => updateOrderStatus.mutate({ orderId: order.id, status: value })}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pendente</SelectItem>
+                              <SelectItem value="confirmed">Confirmado</SelectItem>
+                              <SelectItem value="shipped">Enviado</SelectItem>
+                              <SelectItem value="delivered">Entregue</SelectItem>
+                              <SelectItem value="cancelled">Cancelado</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {order.shippingAddress && (
+                          <div className="mt-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                            <strong>Endereço:</strong> {order.shippingAddress}, {order.shippingCity} - {order.shippingState}, {order.shippingZip}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>Nenhum pedido ainda</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 

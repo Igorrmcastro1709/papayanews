@@ -1460,6 +1460,211 @@ Seja objetivo e foque nos pontos mais relevantes para profissionais de IA, start
       return db.getDocumentStats();
     }),
   }),
+
+  // ==================== PAPAYA SHOP ====================
+  shop: router({
+    // Listar produtos
+    getProducts: publicProcedure
+      .input(z.object({ category: z.string().optional() }).optional())
+      .query(async ({ input }) => {
+        return db.getShopProducts(input?.category);
+      }),
+
+    // Obter produto por ID
+    getProduct: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return db.getShopProduct(input.id);
+      }),
+
+    // Resgatar produto com pontos
+    redeemWithPoints: protectedProcedure
+      .input(z.object({
+        productId: z.number(),
+        quantity: z.number().default(1),
+        // Dados de entrega (para produtos físicos)
+        shippingName: z.string().optional(),
+        shippingAddress: z.string().optional(),
+        shippingCity: z.string().optional(),
+        shippingState: z.string().optional(),
+        shippingZip: z.string().optional(),
+        shippingCountry: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const userId = ctx.user!.id;
+        
+        // Verificar produto
+        const product = await db.getShopProduct(input.productId);
+        if (!product) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Produto não encontrado' });
+        }
+        if (!product.isActive) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Produto não disponível' });
+        }
+        if (product.pointsPrice <= 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Este produto não aceita pontos' });
+        }
+
+        // Verificar nível do usuário
+        const userGamification = await db.getUserGamificationProfile(userId);
+        const userLevel = userGamification?.points?.level || 1;
+        if (userLevel < product.minLevel) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: `Você precisa ser nível ${product.minLevel} para resgatar este produto` });
+        }
+
+        // Verificar pontos suficientes
+        const totalCost = product.pointsPrice * input.quantity;
+        if ((userGamification?.points?.totalPoints || 0) < totalCost) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Pontos insuficientes' });
+        }
+
+        // Verificar estoque
+        if (product.stock !== -1 && product.stock < input.quantity) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Estoque insuficiente' });
+        }
+
+        // Criar pedido
+        const result = await db.createShopOrder({
+          userId,
+          productId: input.productId,
+          quantity: input.quantity,
+          paymentMethod: 'points',
+          pointsSpent: totalCost,
+          cashSpent: 0,
+          shippingName: input.shippingName,
+          shippingAddress: input.shippingAddress,
+          shippingCity: input.shippingCity,
+          shippingState: input.shippingState,
+          shippingZip: input.shippingZip,
+          shippingCountry: input.shippingCountry,
+          notes: input.notes,
+        });
+
+        if (!result || !result.success) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: result?.error || 'Erro ao criar pedido' });
+        }
+
+        // Debitar pontos
+        await db.addPoints(userId, -totalCost, 'shop_redeem', `Resgate: ${product.name}`);
+
+        return { success: true, orderId: result.orderId };
+      }),
+
+    // Listar pedidos do usuário
+    getMyOrders: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserOrders(ctx.user!.id);
+    }),
+
+    // ===== ADMIN =====
+    
+    // Criar produto (admin)
+    createProduct: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        imageUrl: z.string().optional(),
+        imageKey: z.string().optional(),
+        category: z.enum(['physical', 'digital', 'experience', 'badge']),
+        pointsPrice: z.number().default(0),
+        cashPrice: z.number().default(0),
+        stock: z.number().default(-1),
+        minLevel: z.number().default(1),
+        isLimited: z.boolean().default(false),
+        isActive: z.boolean().default(true),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas admins podem criar produtos' });
+        }
+
+        await db.createShopProduct({
+          ...input,
+          isLimited: input.isLimited ? 1 : 0,
+          isActive: input.isActive ? 1 : 0,
+        });
+
+        return { success: true };
+      }),
+
+    // Atualizar produto (admin)
+    updateProduct: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        imageUrl: z.string().optional(),
+        imageKey: z.string().optional(),
+        category: z.enum(['physical', 'digital', 'experience', 'badge']).optional(),
+        pointsPrice: z.number().optional(),
+        cashPrice: z.number().optional(),
+        stock: z.number().optional(),
+        minLevel: z.number().optional(),
+        isLimited: z.boolean().optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas admins podem atualizar produtos' });
+        }
+
+        const { id, isLimited, isActive, ...data } = input;
+        const updateData: any = { ...data };
+        if (isLimited !== undefined) updateData.isLimited = isLimited ? 1 : 0;
+        if (isActive !== undefined) updateData.isActive = isActive ? 1 : 0;
+
+        await db.updateShopProduct(id, updateData);
+        return { success: true };
+      }),
+
+    // Deletar produto (admin)
+    deleteProduct: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas admins podem deletar produtos' });
+        }
+
+        await db.deleteShopProduct(input.id);
+        return { success: true };
+      }),
+
+    // Listar todos os pedidos (admin)
+    getAllOrders: protectedProcedure
+      .input(z.object({ status: z.string().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas admins podem ver todos os pedidos' });
+        }
+
+        return db.getAllOrders(input?.status);
+      }),
+
+    // Atualizar status do pedido (admin)
+    updateOrderStatus: protectedProcedure
+      .input(z.object({
+        orderId: z.number(),
+        status: z.enum(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']),
+        trackingCode: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas admins podem atualizar pedidos' });
+        }
+
+        await db.updateOrderStatus(input.orderId, input.status, input.trackingCode);
+        return { success: true };
+      }),
+
+    // Estatísticas da loja (admin)
+    getStats: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user?.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas admins podem ver estatísticas' });
+      }
+
+      return db.getShopStats();
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

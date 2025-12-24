@@ -1,6 +1,6 @@
 import { eq, and, gte, count, sql, desc, or, lte, between } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress, chatMessages, InsertChatMessage, chatAttachments, InsertChatAttachment, dailySummaries, InsertDailySummary, userProfiles, InsertUserProfile, userConnections, InsertUserConnection, documentLibrary, InsertDocumentLibrary } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress, chatMessages, InsertChatMessage, chatAttachments, InsertChatAttachment, dailySummaries, InsertDailySummary, userProfiles, InsertUserProfile, userConnections, InsertUserConnection, documentLibrary, InsertDocumentLibrary, shopProducts, InsertShopProduct, shopOrders, InsertShopOrder } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
 import { sendVerificationEmail as sendVerificationEmailResend } from './_core/email';
@@ -1841,5 +1841,233 @@ export async function getDocumentStats() {
     total: total[0]?.count || 0,
     totalSize: totalSize[0]?.sum || 0,
     byCategory,
+  };
+}
+
+
+// ==================== PAPAYA SHOP ====================
+
+// Listar produtos ativos
+export async function getShopProducts(category?: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  let query = db
+    .select()
+    .from(shopProducts)
+    .where(eq(shopProducts.isActive, 1))
+    .orderBy(desc(shopProducts.createdAt));
+
+  if (category) {
+    return db
+      .select()
+      .from(shopProducts)
+      .where(and(eq(shopProducts.isActive, 1), eq(shopProducts.category, category as any)))
+      .orderBy(desc(shopProducts.createdAt));
+  }
+
+  return query;
+}
+
+// Obter produto por ID
+export async function getShopProduct(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select()
+    .from(shopProducts)
+    .where(eq(shopProducts.id, id))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+// Criar produto (admin)
+export async function createShopProduct(data: InsertShopProduct) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.insert(shopProducts).values(data);
+  return result;
+}
+
+// Atualizar produto (admin)
+export async function updateShopProduct(id: number, data: Partial<InsertShopProduct>) {
+  const db = await getDb();
+  if (!db) return null;
+
+  await db.update(shopProducts).set(data).where(eq(shopProducts.id, id));
+  return { success: true };
+}
+
+// Deletar produto (admin)
+export async function deleteShopProduct(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  await db.delete(shopProducts).where(eq(shopProducts.id, id));
+  return { success: true };
+}
+
+// Criar pedido (resgate)
+export async function createShopOrder(data: InsertShopOrder) {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Verificar estoque
+  const product = await getShopProduct(data.productId);
+  if (!product) return { success: false, error: 'Produto não encontrado' };
+  if (product.stock !== -1 && product.stock < (data.quantity || 1)) {
+    return { success: false, error: 'Estoque insuficiente' };
+  }
+
+  // Criar pedido
+  const result = await db.insert(shopOrders).values(data);
+
+  // Atualizar estoque se não for ilimitado
+  if (product.stock !== -1) {
+    await db.update(shopProducts)
+      .set({ 
+        stock: sql`${shopProducts.stock} - ${data.quantity || 1}`,
+        totalSold: sql`${shopProducts.totalSold} + ${data.quantity || 1}`
+      })
+      .where(eq(shopProducts.id, data.productId));
+  } else {
+    await db.update(shopProducts)
+      .set({ totalSold: sql`${shopProducts.totalSold} + ${data.quantity || 1}` })
+      .where(eq(shopProducts.id, data.productId));
+  }
+
+  return { success: true, orderId: result[0].insertId };
+}
+
+// Listar pedidos do usuário
+export async function getUserOrders(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      id: shopOrders.id,
+      productId: shopOrders.productId,
+      quantity: shopOrders.quantity,
+      paymentMethod: shopOrders.paymentMethod,
+      pointsSpent: shopOrders.pointsSpent,
+      cashSpent: shopOrders.cashSpent,
+      status: shopOrders.status,
+      createdAt: shopOrders.createdAt,
+      productName: shopProducts.name,
+      productImage: shopProducts.imageUrl,
+      productCategory: shopProducts.category,
+    })
+    .from(shopOrders)
+    .leftJoin(shopProducts, eq(shopOrders.productId, shopProducts.id))
+    .where(eq(shopOrders.userId, userId))
+    .orderBy(desc(shopOrders.createdAt));
+}
+
+// Listar todos os pedidos (admin)
+export async function getAllOrders(status?: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  let baseQuery = db
+    .select({
+      id: shopOrders.id,
+      userId: shopOrders.userId,
+      productId: shopOrders.productId,
+      quantity: shopOrders.quantity,
+      paymentMethod: shopOrders.paymentMethod,
+      pointsSpent: shopOrders.pointsSpent,
+      cashSpent: shopOrders.cashSpent,
+      status: shopOrders.status,
+      shippingName: shopOrders.shippingName,
+      shippingAddress: shopOrders.shippingAddress,
+      shippingCity: shopOrders.shippingCity,
+      shippingState: shopOrders.shippingState,
+      shippingZip: shopOrders.shippingZip,
+      trackingCode: shopOrders.trackingCode,
+      notes: shopOrders.notes,
+      createdAt: shopOrders.createdAt,
+      productName: shopProducts.name,
+      productImage: shopProducts.imageUrl,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(shopOrders)
+    .leftJoin(shopProducts, eq(shopOrders.productId, shopProducts.id))
+    .leftJoin(users, eq(shopOrders.userId, users.id))
+    .orderBy(desc(shopOrders.createdAt));
+
+  if (status) {
+    return db
+      .select({
+        id: shopOrders.id,
+        userId: shopOrders.userId,
+        productId: shopOrders.productId,
+        quantity: shopOrders.quantity,
+        paymentMethod: shopOrders.paymentMethod,
+        pointsSpent: shopOrders.pointsSpent,
+        cashSpent: shopOrders.cashSpent,
+        status: shopOrders.status,
+        shippingName: shopOrders.shippingName,
+        shippingAddress: shopOrders.shippingAddress,
+        shippingCity: shopOrders.shippingCity,
+        shippingState: shopOrders.shippingState,
+        shippingZip: shopOrders.shippingZip,
+        trackingCode: shopOrders.trackingCode,
+        notes: shopOrders.notes,
+        createdAt: shopOrders.createdAt,
+        productName: shopProducts.name,
+        productImage: shopProducts.imageUrl,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(shopOrders)
+      .leftJoin(shopProducts, eq(shopOrders.productId, shopProducts.id))
+      .leftJoin(users, eq(shopOrders.userId, users.id))
+      .where(eq(shopOrders.status, status as any))
+      .orderBy(desc(shopOrders.createdAt));
+  }
+
+  return baseQuery;
+}
+
+// Atualizar status do pedido (admin)
+export async function updateOrderStatus(orderId: number, status: string, trackingCode?: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const updateData: Record<string, any> = { status };
+  
+  if (status === 'confirmed') {
+    updateData.confirmedAt = new Date();
+  } else if (status === 'shipped') {
+    updateData.shippedAt = new Date();
+    if (trackingCode) updateData.trackingCode = trackingCode;
+  } else if (status === 'delivered') {
+    updateData.deliveredAt = new Date();
+  }
+
+  await db.update(shopOrders).set(updateData).where(eq(shopOrders.id, orderId));
+  return { success: true };
+}
+
+// Obter estatísticas da loja (admin)
+export async function getShopStats() {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [totalProducts] = await db.select({ count: count() }).from(shopProducts).where(eq(shopProducts.isActive, 1));
+  const [totalOrders] = await db.select({ count: count() }).from(shopOrders);
+  const [pendingOrders] = await db.select({ count: count() }).from(shopOrders).where(eq(shopOrders.status, 'pending'));
+  const [totalPointsSpent] = await db.select({ total: sql<number>`COALESCE(SUM(${shopOrders.pointsSpent}), 0)` }).from(shopOrders);
+
+  return {
+    totalProducts: totalProducts?.count || 0,
+    totalOrders: totalOrders?.count || 0,
+    pendingOrders: pendingOrders?.count || 0,
+    totalPointsSpent: totalPointsSpent?.total || 0,
   };
 }

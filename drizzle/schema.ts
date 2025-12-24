@@ -375,4 +375,64 @@ export const documentLibrary = mysqlTable("document_library", {
 export type DocumentLibrary = typeof documentLibrary.$inferSelect;
 export type InsertDocumentLibrary = typeof documentLibrary.$inferInsert;
 
+// Papaya Shop - Produtos
+export const shopProducts = mysqlTable("shop_products", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  imageUrl: varchar("image_url", { length: 500 }),
+  imageKey: varchar("image_key", { length: 500 }), // S3 key
+  category: mysqlEnum("category", ["physical", "digital", "experience", "badge"]).default("physical").notNull(),
+  // Preços
+  pointsPrice: int("points_price").default(0).notNull(), // Preço em pontos (0 = não aceita pontos)
+  cashPrice: int("cash_price").default(0).notNull(), // Preço em centavos (0 = não aceita dinheiro)
+  // Estoque
+  stock: int("stock").default(-1).notNull(), // -1 = ilimitado
+  // Restrições
+  minLevel: int("min_level").default(1).notNull(), // Nível mínimo para comprar
+  isLimited: int("is_limited").default(0).notNull(), // 1 = edição limitada
+  isActive: int("is_active").default(1).notNull(), // 1 = disponível, 0 = oculto
+  // Metadados
+  totalSold: int("total_sold").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ShopProduct = typeof shopProducts.$inferSelect;
+export type InsertShopProduct = typeof shopProducts.$inferInsert;
+
+// Papaya Shop - Pedidos
+export const shopOrders = mysqlTable("shop_orders", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  productId: int("product_id").notNull(),
+  quantity: int("quantity").default(1).notNull(),
+  // Pagamento
+  paymentMethod: mysqlEnum("payment_method", ["points", "cash", "hybrid"]).notNull(),
+  pointsSpent: int("points_spent").default(0).notNull(),
+  cashSpent: int("cash_spent").default(0).notNull(), // em centavos
+  // Status
+  status: mysqlEnum("status", ["pending", "confirmed", "shipped", "delivered", "cancelled"]).default("pending").notNull(),
+  // Entrega (para produtos físicos)
+  shippingName: varchar("shipping_name", { length: 255 }),
+  shippingAddress: text("shipping_address"),
+  shippingCity: varchar("shipping_city", { length: 100 }),
+  shippingState: varchar("shipping_state", { length: 50 }),
+  shippingZip: varchar("shipping_zip", { length: 20 }),
+  shippingCountry: varchar("shipping_country", { length: 100 }),
+  trackingCode: varchar("tracking_code", { length: 100 }),
+  // Notas
+  notes: text("notes"),
+  adminNotes: text("admin_notes"),
+  // Timestamps
+  confirmedAt: timestamp("confirmed_at"),
+  shippedAt: timestamp("shipped_at"),
+  deliveredAt: timestamp("delivered_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ShopOrder = typeof shopOrders.$inferSelect;
+export type InsertShopOrder = typeof shopOrders.$inferInsert;
+
 // TODO: Add your tables here

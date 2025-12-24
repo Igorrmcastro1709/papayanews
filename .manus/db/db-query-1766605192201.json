@@ -1,0 +1,9 @@
+{
+  "query": "SELECT name, email, verified, created_at \nFROM signup_requests \nWHERE email NOT LIKE '%@papayanews.com'\nAND email NOT LIKE 'test-%'\nAND email NOT LIKE 'verify-%'\nAND email NOT LIKE 'wrong-%'\nAND email NOT LIKE 'used-%'\nAND email NOT LIKE 'db-test-%'\nORDER BY created_at DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 4LQkoHrXi2eNL4X.root --database ZAeLPjMN389Z2yRsdgzntV --execute SELECT name, email, verified, created_at \nFROM signup_requests \nWHERE email NOT LIKE '%@papayanews.com'\nAND email NOT LIKE 'test-%'\nAND email NOT LIKE 'verify-%'\nAND email NOT LIKE 'wrong-%'\nAND email NOT LIKE 'used-%'\nAND email NOT LIKE 'db-test-%'\nORDER BY created_at DESC;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 55
+}
