@@ -174,7 +174,7 @@ export type InsertNewsletterSubscriber = typeof newsletterSubscribers.$inferInse
 export const notifications = mysqlTable("notifications", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("user_id").notNull(),
-  type: mysqlEnum("type", ["badge", "comment_reply", "event_reminder", "general"]).notNull(),
+  type: mysqlEnum("type", ["badge", "comment_reply", "event_reminder", "general", "referral"]).notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   message: text("message").notNull(),
   read: int("read").default(0).notNull(), // 0 = não lida, 1 = lida

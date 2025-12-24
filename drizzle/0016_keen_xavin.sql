@@ -1,0 +1,1 @@
+ALTER TABLE `notifications` MODIFY COLUMN `type` enum('badge','comment_reply','event_reminder','general','referral') NOT NULL;

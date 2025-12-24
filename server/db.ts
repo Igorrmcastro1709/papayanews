@@ -2183,6 +2183,19 @@ export async function registerReferral(referrerId: number, referredId: number, r
   // Dar pontos de boas-vindas para quem foi indicado
   await addPoints(referredId, REFERRED_POINTS, 'referral_bonus', `Bônus de boas-vindas por indicação`);
 
+  // Obter nome do novo membro para a notificação
+  const referredUser = await db.select().from(users).where(eq(users.id, referredId)).limit(1);
+  const referredName = referredUser[0]?.name || 'Um novo membro';
+
+  // Criar notificação para quem indicou
+  await createNotification({
+    userId: referrerId,
+    type: 'referral',
+    title: '🎉 Nova Indicação!',
+    message: `${referredName} se cadastrou usando seu código de indicação! Você ganhou ${REFERRER_POINTS} pontos.`,
+    link: '/referral',
+  });
+
   // Verificar badges de indicação
   const referralCode = await getUserReferralCode(referrerId);
   if (referralCode) {
@@ -2202,7 +2215,7 @@ export async function registerReferral(referrerId: number, referredId: number, r
     }
   }
 
-  return { success: true, referrerPoints: REFERRER_POINTS, referredPoints: REFERRED_POINTS };
+  return { success: true, referrerPoints: REFERRER_POINTS, referredPoints: REFERRED_POINTS, referredName };
 }
 
 // Obter histórico de indicações do usuário

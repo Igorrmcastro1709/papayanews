@@ -291,3 +291,9 @@
 - [x] Criar badges especiais para indicadores (Recrutador, Embaixador, Lenda)
 - [x] Adicionar link no menu de navegação
 - [x] Testar funcionalidades
+
+## Notificações de Referral
+- [x] Criar notificação quando amigo se inscreve usando código de indicação
+- [x] Exibir notificação no sino do header (já existente)
+- [x] Incluir nome do novo membro na notificação
+- [x] Testar fluxo completo de notificação
