@@ -1665,6 +1665,85 @@ Seja objetivo e foque nos pontos mais relevantes para profissionais de IA, start
       return db.getShopStats();
     }),
   }),
+
+  // ==================== PROGRAMA DE REFERRAL ====================
+  referral: router({
+    // Obter ou gerar código de referral do usuário
+    getMyCode: protectedProcedure.query(async ({ ctx }) => {
+      let code = await db.getUserReferralCode(ctx.user.id);
+      
+      // Se não tem código, gerar um novo
+      if (!code) {
+        code = await db.generateReferralCode(ctx.user.id, ctx.user.name);
+      }
+      
+      return code;
+    }),
+
+    // Obter estatísticas de referral do usuário
+    getMyStats: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserReferralStats(ctx.user.id);
+    }),
+
+    // Obter histórico de indicações
+    getMyHistory: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserReferralHistory(ctx.user.id);
+    }),
+
+    // Validar código de referral (público - para quem está se cadastrando)
+    validateCode: publicProcedure
+      .input(z.object({ code: z.string() }))
+      .query(async ({ input }) => {
+        const referral = await db.validateReferralCode(input.code);
+        
+        if (!referral) {
+          return { valid: false, referrerName: null };
+        }
+        
+        return {
+          valid: true,
+          referrerName: referral.userName,
+        };
+      }),
+
+    // Registrar indicação (chamado após cadastro bem-sucedido)
+    registerReferral: protectedProcedure
+      .input(z.object({ code: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        // Verificar se usuário já foi indicado
+        const wasReferred = await db.wasUserReferred(ctx.user.id);
+        if (wasReferred) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Você já foi indicado por alguém' });
+        }
+
+        // Validar código
+        const referral = await db.validateReferralCode(input.code);
+        if (!referral) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Código de indicação inválido' });
+        }
+
+        // Não pode se auto-indicar
+        if (referral.userId === ctx.user.id) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Você não pode usar seu próprio código' });
+        }
+
+        // Registrar indicação
+        const result = await db.registerReferral(referral.userId, ctx.user.id, referral.id);
+        
+        return {
+          success: true,
+          referrerPoints: result?.referrerPoints || 500,
+          referredPoints: result?.referredPoints || 200,
+        };
+      }),
+
+    // Obter ranking de indicadores
+    getLeaderboard: publicProcedure
+      .input(z.object({ limit: z.number().optional().default(10) }))
+      .query(async ({ input }) => {
+        return db.getReferralLeaderboard(input.limit);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

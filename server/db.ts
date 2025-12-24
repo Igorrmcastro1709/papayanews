@@ -1,6 +1,6 @@
 import { eq, and, gte, count, sql, desc, or, lte, between } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress, chatMessages, InsertChatMessage, chatAttachments, InsertChatAttachment, dailySummaries, InsertDailySummary, userProfiles, InsertUserProfile, userConnections, InsertUserConnection, documentLibrary, InsertDocumentLibrary, shopProducts, InsertShopProduct, shopOrders, InsertShopOrder } from "../drizzle/schema";
+import { InsertUser, users, signupRequests, featuredContent, InsertFeaturedContent, events, InsertEvent, contentViews, eventViews, comments, InsertComment, userPoints, badges, userBadges, pointsHistory, InsertBadge, newsletters, InsertNewsletter, newsletterSubscribers, notifications, forumThreads, forumReplies, forumUpvotes, InsertNotification, userStreaks, weeklyChallenges, userChallengeProgress, chatMessages, InsertChatMessage, chatAttachments, InsertChatAttachment, dailySummaries, InsertDailySummary, userProfiles, InsertUserProfile, userConnections, InsertUserConnection, documentLibrary, InsertDocumentLibrary, shopProducts, InsertShopProduct, shopOrders, InsertShopOrder, referralCodes, InsertReferralCode, referralHistory, InsertReferralHistory } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
 import { sendVerificationEmail as sendVerificationEmailResend } from './_core/email';
@@ -2070,4 +2070,248 @@ export async function getShopStats() {
     pendingOrders: pendingOrders?.count || 0,
     totalPointsSpent: totalPointsSpent?.total || 0,
   };
+}
+
+// ==================== PROGRAMA DE REFERRAL ====================
+
+// Gerar código de referral único para um usuário
+export async function generateReferralCode(userId: number, userName: string | null) {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Verificar se já existe código para este usuário
+  const existing = await db
+    .select()
+    .from(referralCodes)
+    .where(eq(referralCodes.userId, userId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return existing[0];
+  }
+
+  // Gerar código único baseado no nome do usuário
+  const baseName = userName 
+    ? userName.split(' ')[0].toUpperCase().replace(/[^A-Z]/g, '').slice(0, 8)
+    : 'PAPAYA';
+  const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const code = `${baseName}-${randomSuffix}`;
+
+  await db.insert(referralCodes).values({
+    userId,
+    code,
+  });
+
+  const [newCode] = await db
+    .select()
+    .from(referralCodes)
+    .where(eq(referralCodes.userId, userId))
+    .limit(1);
+
+  return newCode;
+}
+
+// Obter código de referral do usuário
+export async function getUserReferralCode(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [code] = await db
+    .select()
+    .from(referralCodes)
+    .where(eq(referralCodes.userId, userId))
+    .limit(1);
+
+  return code || null;
+}
+
+// Validar código de referral
+export async function validateReferralCode(code: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [referral] = await db
+    .select({
+      id: referralCodes.id,
+      userId: referralCodes.userId,
+      code: referralCodes.code,
+      isActive: referralCodes.isActive,
+      userName: users.name,
+    })
+    .from(referralCodes)
+    .leftJoin(users, eq(referralCodes.userId, users.id))
+    .where(
+      and(
+        eq(referralCodes.code, code),
+        eq(referralCodes.isActive, 1)
+      )
+    )
+    .limit(1);
+
+  return referral || null;
+}
+
+// Registrar indicação e dar pontos
+export async function registerReferral(referrerId: number, referredId: number, referralCodeId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const REFERRER_POINTS = 500; // Pontos para quem indicou
+  const REFERRED_POINTS = 200; // Pontos para quem foi indicado
+
+  // Criar registro de indicação
+  await db.insert(referralHistory).values({
+    referrerId,
+    referredId,
+    referralCodeId,
+    referrerPointsEarned: REFERRER_POINTS,
+    referredPointsEarned: REFERRED_POINTS,
+    status: 'completed',
+  });
+
+  // Atualizar contador no código de referral
+  await db.update(referralCodes)
+    .set({
+      totalReferrals: sql`${referralCodes.totalReferrals} + 1`,
+      totalPointsEarned: sql`${referralCodes.totalPointsEarned} + ${REFERRER_POINTS}`,
+    })
+    .where(eq(referralCodes.id, referralCodeId));
+
+  // Dar pontos para quem indicou
+  await addPoints(referrerId, REFERRER_POINTS, 'referral', `Indicação de novo membro`);
+
+  // Dar pontos de boas-vindas para quem foi indicado
+  await addPoints(referredId, REFERRED_POINTS, 'referral_bonus', `Bônus de boas-vindas por indicação`);
+
+  // Verificar badges de indicação
+  const referralCode = await getUserReferralCode(referrerId);
+  if (referralCode) {
+    const totalReferrals = referralCode.totalReferrals + 1;
+    
+    // Badge: Recrutador (5 indicações)
+    if (totalReferrals >= 5) {
+      await awardBadge(referrerId, 'recruiter');
+    }
+    // Badge: Embaixador (10 indicações)
+    if (totalReferrals >= 10) {
+      await awardBadge(referrerId, 'ambassador');
+    }
+    // Badge: Lenda (25 indicações)
+    if (totalReferrals >= 25) {
+      await awardBadge(referrerId, 'legend');
+    }
+  }
+
+  return { success: true, referrerPoints: REFERRER_POINTS, referredPoints: REFERRED_POINTS };
+}
+
+// Obter histórico de indicações do usuário
+export async function getUserReferralHistory(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const history = await db
+    .select({
+      id: referralHistory.id,
+      referredId: referralHistory.referredId,
+      referrerPointsEarned: referralHistory.referrerPointsEarned,
+      status: referralHistory.status,
+      createdAt: referralHistory.createdAt,
+      referredName: users.name,
+      referredEmail: users.email,
+    })
+    .from(referralHistory)
+    .leftJoin(users, eq(referralHistory.referredId, users.id))
+    .where(eq(referralHistory.referrerId, userId))
+    .orderBy(desc(referralHistory.createdAt));
+
+  return history;
+}
+
+// Obter estatísticas de referral do usuário
+export async function getUserReferralStats(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const code = await getUserReferralCode(userId);
+  if (!code) return null;
+
+  const history = await getUserReferralHistory(userId);
+
+  return {
+    code: code.code,
+    totalReferrals: code.totalReferrals,
+    totalPointsEarned: code.totalPointsEarned,
+    isActive: code.isActive === 1,
+    recentReferrals: history.slice(0, 5),
+  };
+}
+
+// Obter ranking de indicadores
+export async function getReferralLeaderboard(limit: number = 10) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      userId: referralCodes.userId,
+      code: referralCodes.code,
+      totalReferrals: referralCodes.totalReferrals,
+      totalPointsEarned: referralCodes.totalPointsEarned,
+      userName: users.name,
+    })
+    .from(referralCodes)
+    .leftJoin(users, eq(referralCodes.userId, users.id))
+    .where(sql`${referralCodes.totalReferrals} > 0`)
+    .orderBy(desc(referralCodes.totalReferrals))
+    .limit(limit);
+}
+
+// Verificar se usuário já foi indicado por alguém
+export async function wasUserReferred(userId: number) {
+  const db = await getDb();
+  if (!db) return false;
+
+  const [existing] = await db
+    .select()
+    .from(referralHistory)
+    .where(eq(referralHistory.referredId, userId))
+    .limit(1);
+
+  return !!existing;
+}
+
+// Helper para dar badge (se não existir)
+async function awardBadge(userId: number, badgeSlug: string) {
+  const db = await getDb();
+  if (!db) return;
+
+  // Buscar badge pelo slug
+  const [badge] = await db
+    .select()
+    .from(badges)
+    .where(eq(badges.name, badgeSlug))
+    .limit(1);
+
+  if (!badge) return;
+
+  // Verificar se já tem o badge
+  const [existing] = await db
+    .select()
+    .from(userBadges)
+    .where(
+      and(
+        eq(userBadges.userId, userId),
+        eq(userBadges.badgeId, badge.id)
+      )
+    )
+    .limit(1);
+
+  if (existing) return;
+
+  // Dar o badge
+  await db.insert(userBadges).values({
+    userId,
+    badgeId: badge.id,
+  });
 }

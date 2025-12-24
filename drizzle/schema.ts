@@ -435,4 +435,34 @@ export const shopOrders = mysqlTable("shop_orders", {
 export type ShopOrder = typeof shopOrders.$inferSelect;
 export type InsertShopOrder = typeof shopOrders.$inferInsert;
 
+// Programa de Referral - Códigos de indicação
+export const referralCodes = mysqlTable("referral_codes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull().unique(), // Cada usuário tem um código único
+  code: varchar("code", { length: 50 }).notNull().unique(), // Ex: HEITOR-2025 ou PAPAYA-ABC123
+  totalReferrals: int("total_referrals").default(0).notNull(), // Contador de indicações
+  totalPointsEarned: int("total_points_earned").default(0).notNull(), // Total de pontos ganhos
+  isActive: int("is_active").default(1).notNull(), // 1 = ativo, 0 = desativado
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ReferralCode = typeof referralCodes.$inferSelect;
+export type InsertReferralCode = typeof referralCodes.$inferInsert;
+
+// Programa de Referral - Histórico de indicações
+export const referralHistory = mysqlTable("referral_history", {
+  id: int("id").autoincrement().primaryKey(),
+  referrerId: int("referrer_id").notNull(), // Quem indicou
+  referredId: int("referred_id").notNull(), // Quem foi indicado
+  referralCodeId: int("referral_code_id").notNull(), // Código usado
+  referrerPointsEarned: int("referrer_points_earned").default(500).notNull(), // Pontos para quem indicou
+  referredPointsEarned: int("referred_points_earned").default(200).notNull(), // Pontos para quem foi indicado
+  status: mysqlEnum("status", ["pending", "completed", "cancelled"]).default("completed").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ReferralHistory = typeof referralHistory.$inferSelect;
+export type InsertReferralHistory = typeof referralHistory.$inferInsert;
+
 // TODO: Add your tables here

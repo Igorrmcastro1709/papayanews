@@ -280,3 +280,14 @@
 
 ## Link da Papaya Shop no Menu
 - [x] Adicionar link da Shop no menu de navegação do Dashboard
+
+## Programa de Referral
+- [x] Criar schema do banco para códigos de referral e indicações
+- [x] Gerar código único para cada membro automaticamente
+- [x] Implementar rotas para validar código e registrar indicação
+- [x] Criar página "Indicar Amigos" com código copiável e compartilhamento
+- [x] Adicionar dashboard de indicações (quantos indicados, pontos ganhos)
+- [x] Integrar código de referral no fluxo de cadastro (via link /join/:code)
+- [x] Criar badges especiais para indicadores (Recrutador, Embaixador, Lenda)
+- [x] Adicionar link no menu de navegação
+- [x] Testar funcionalidades

@@ -28,6 +28,7 @@ import {
   Users,
   Archive,
   FolderOpen,
+  Gift,
   ShoppingBag
 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -149,6 +150,10 @@ export default function Dashboard() {
                 <ShoppingBag className="h-4 w-4 mr-2" />
                 Loja
               </Button>
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/referral")}>
+                <Gift className="h-4 w-4 mr-2" />
+                Indicar
+              </Button>
               <NotificationBell />
               <Button variant="ghost" size="sm" onClick={() => setLocation("/profile")}>
                 <User className="h-4 w-4 mr-2" />
@@ -196,6 +201,9 @@ export default function Dashboard() {
             </Button>
             <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/shop"); setMobileMenuOpen(false); }}>
               <ShoppingBag className="h-4 w-4 mr-2" /> Loja
+            </Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/referral"); setMobileMenuOpen(false); }}>
+              <Gift className="h-4 w-4 mr-2" /> Indicar Amigos
             </Button>
             <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/profile"); setMobileMenuOpen(false); }}>
               <User className="h-4 w-4 mr-2" /> Meu Perfil
