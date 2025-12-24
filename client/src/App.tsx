@@ -19,6 +19,7 @@ import Archive from "./pages/Archive";
 import Library from "./pages/Library";
 import Shop from "./pages/Shop";
 import Referral from "./pages/Referral";
+import JoinReferral from "./pages/JoinReferral";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -39,7 +40,7 @@ function Router() {
       <Route path="/library" component={Library} />
       <Route path="/shop" component={Shop} />
       <Route path="/referral" component={Referral} />
-      <Route path="/join/:code" component={Referral} />
+      <Route path="/join/:code" component={JoinReferral} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

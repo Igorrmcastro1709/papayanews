@@ -297,3 +297,10 @@
 - [x] Exibir notificação no sino do header (já existente)
 - [x] Incluir nome do novo membro na notificação
 - [x] Testar fluxo completo de notificação
+
+## Refinamento do Processo de Indicação
+- [x] Corrigir layout da página /join/:code para mobile/WhatsApp
+- [x] Destacar bônus de 200 pontos na página de cadastro por indicação
+- [x] Simplificar onboarding - ir direto para cadastro
+- [x] Melhorar preview do link no WhatsApp (Open Graph tags)
+- [x] Testar fluxo completo

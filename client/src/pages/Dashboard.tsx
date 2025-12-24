@@ -55,9 +55,28 @@ export default function Dashboard() {
   // Atualizar streak ao entrar
   const updateStreakMutation = trpc.engagement.updateStreak.useMutation();
   
+  // Processar código de referral pendente
+  const registerReferralMutation = trpc.referral.registerReferral.useMutation({
+    onSuccess: () => {
+      toast.success("🎉 Parabéns! Você ganhou 200 pontos de bônus por indicação!");
+      localStorage.removeItem('pending_referral_code');
+      localStorage.setItem('referral_used', 'true');
+    },
+    onError: () => {
+      localStorage.removeItem('pending_referral_code');
+    }
+  });
+  
   useEffect(() => {
     if (isAuthenticated && user) {
       updateStreakMutation.mutate();
+      
+      // Verificar se há código de referral pendente
+      const pendingCode = localStorage.getItem('pending_referral_code');
+      const alreadyUsed = localStorage.getItem('referral_used');
+      if (pendingCode && !alreadyUsed) {
+        registerReferralMutation.mutate({ code: pendingCode });
+      }
     }
   }, [isAuthenticated, user]);
 
