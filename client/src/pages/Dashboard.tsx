@@ -25,7 +25,8 @@ import {
   Clock,
   Settings,
   MessageCircle,
-  Users
+  Users,
+  Archive
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
@@ -134,6 +135,10 @@ export default function Dashboard() {
                 <Users className="h-4 w-4 mr-2" />
                 Membros
               </Button>
+              <Button variant="ghost" size="sm" onClick={() => setLocation("/archive")}>
+                <Archive className="h-4 w-4 mr-2" />
+                Arquivo
+              </Button>
               <NotificationBell />
               <Button variant="ghost" size="sm" onClick={() => setLocation("/profile")}>
                 <User className="h-4 w-4 mr-2" />
@@ -172,6 +177,9 @@ export default function Dashboard() {
             </Button>
             <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/members"); setMobileMenuOpen(false); }}>
               <Users className="h-4 w-4 mr-2" /> Membros
+            </Button>
+            <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/archive"); setMobileMenuOpen(false); }}>
+              <Archive className="h-4 w-4 mr-2" /> Arquivo
             </Button>
             <Button variant="ghost" className="w-full justify-start" onClick={() => { setLocation("/profile"); setMobileMenuOpen(false); }}>
               <User className="h-4 w-4 mr-2" /> Meu Perfil

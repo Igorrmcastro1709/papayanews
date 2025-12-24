@@ -119,6 +119,9 @@ export default function Home() {
               <a href="#beneficios" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
                 Benefícios
               </a>
+              <a href="/archive" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                Arquivo
+              </a>
               <a href="#cadastro" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
                 Cadastrar
               </a>
@@ -149,6 +152,13 @@ export default function Home() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Benefícios
+              </a>
+              <a 
+                href="/archive" 
+                className="block py-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Arquivo
               </a>
               <a 
                 href="#cadastro" 

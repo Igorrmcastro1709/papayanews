@@ -225,3 +225,12 @@
 - [x] Implementar sistema de conexões (solicitar, aceitar, recusar)
 - [x] Adicionar navegação para perfis e diretório
 - [x] Testar todas as funcionalidades
+
+## Histórico de Publicações com Acesso Diferenciado
+- [x] Criar página de arquivo/histórico de conteúdos
+- [x] Implementar lógica de acesso diferenciado (visitantes vs membros)
+- [x] Mostrar últimos 3-5 conteúdos para visitantes com preview
+- [x] Exibir contador de conteúdos bloqueados para incentivar cadastro
+- [x] Adicionar CTA de cadastro para desbloquear arquivo completo
+- [x] Adicionar filtros por categoria e data para membros
+- [x] Testar funcionalidades
