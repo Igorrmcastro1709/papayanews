@@ -1,4 +1,19 @@
-# The Daily Compute #44 — 31 de março de 2026
+/**
+ * auto-publish-44.ts
+ * Script de publicação automática do The Daily Compute — Edição #44
+ * Uso: cd /home/ubuntu/papayanews && npx tsx scripts/auto-publish-44.ts
+ */
+import "dotenv/config";
+import * as fs from "fs";
+import * as path from "path";
+import * as db from "../server/db";
+
+// ─── Conteúdo da edição ────────────────────────────────────────────────────
+const EDITION_NUMBER = 44;
+const EDITION_DATE = "31 de março de 2026";
+const EDITION_TITLE = `The Daily Compute #${EDITION_NUMBER} — ${EDITION_DATE}`;
+const EDITION_SUBJECT = `The Daily Compute #${EDITION_NUMBER} — ${EDITION_DATE}: Axios comprometido no NPM, Google lança TurboQuant e Newsom assina executive order de IA`;
+const EDITION_CONTENT = `# The Daily Compute #${EDITION_NUMBER} — ${EDITION_DATE}
 
 **Manchete:** Ataque massivo à cadeia de suprimentos compromete Axios no NPM, enquanto Google apresenta algoritmo revolucionário que reduz em seis vezes o consumo de memória de IA.
 
@@ -175,3 +190,67 @@ Para garantir a evasão forense, o malware realizava uma rotina de limpeza agres
 **Automação de infraestrutura em alta:** A ScaleOps levantou cento e trinta milhões de dólares em uma rodada Série C para sua plataforma que utiliza inteligência artificial para automatizar a gestão de clusters Kubernetes em tempo real, prometendo reduzir drasticamente os custos de nuvem em um momento de escassez global de GPUs.
 
 **Soberania em semicondutores avança:** Fabricantes de chips na China estabeleceram uma meta agressiva de atingir oitenta por cento de autossuficiência na produção de semicondutores até o início da próxima década, uma resposta direta às sanções de exportação que está reconfigurando as cadeias de suprimentos globais de hardware para inteligência artificial.
+`;
+
+// ─── Função principal de publicação ────────────────────────────────────────
+async function publishEdition() {
+  console.log(`\n📰 The Daily Compute — Auto-Publish Script`);
+  console.log(`📅 Edição: #${EDITION_NUMBER} — ${EDITION_DATE}`);
+  console.log(`─────────────────────────────────────────────`);
+
+  // Verificar DATABASE_URL
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    console.error("❌ DATABASE_URL não configurada. Publicação no banco de dados não disponível.");
+    console.log("\n📄 Conteúdo da edição gerado com sucesso:");
+    console.log(`   Título: ${EDITION_TITLE}`);
+    console.log(`   Assunto: ${EDITION_SUBJECT}`);
+    console.log(`   Caracteres: ${EDITION_CONTENT.length}`);
+    console.log("\n✅ Script executado. Edição pronta para publicação manual.");
+
+    // Salvar o conteúdo em arquivo para referência
+    const outputPath = path.join(process.cwd(), "scripts", "last-edition.md");
+    fs.writeFileSync(outputPath, EDITION_CONTENT, "utf-8");
+    console.log(`\n💾 Edição salva em: ${outputPath}`);
+    return;
+  }
+
+  try {
+    console.log("🔌 Conectando ao banco de dados...");
+
+    // Criar newsletter no banco de dados
+    const newsletter = await db.createNewsletter({
+      title: EDITION_TITLE,
+      subject: EDITION_SUBJECT,
+      content: EDITION_CONTENT,
+      status: "sent",
+      sentAt: new Date(),
+      createdBy: 1, // Admin user ID
+    });
+
+    console.log(`✅ Newsletter criada com sucesso!`);
+    console.log(`   ID: ${(newsletter as any)?.insertId || "N/A"}`);
+    console.log(`   Título: ${EDITION_TITLE}`);
+    console.log(`   Status: sent`);
+    console.log(`   Data: ${new Date().toISOString()}`);
+
+    // Salvar o conteúdo em arquivo para referência
+    const outputPath = path.join(process.cwd(), "scripts", "last-edition.md");
+    fs.writeFileSync(outputPath, EDITION_CONTENT, "utf-8");
+    console.log(`\n💾 Edição salva em: ${outputPath}`);
+
+    console.log("\n🎉 Publicação concluída com sucesso!");
+
+  } catch (error) {
+    console.error("❌ Erro ao publicar no banco de dados:", error);
+
+    // Fallback: salvar em arquivo
+    const outputPath = path.join(process.cwd(), "scripts", "last-edition.md");
+    fs.writeFileSync(outputPath, EDITION_CONTENT, "utf-8");
+    console.log(`\n💾 Fallback: Edição salva em arquivo: ${outputPath}`);
+    console.log("⚠️  Publicação no banco falhou, mas o conteúdo foi preservado.");
+  }
+}
+
+// Executar
+publishEdition().catch(console.error);
