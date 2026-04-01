@@ -1,4 +1,19 @@
-# The Daily Compute #45 — 01 de abril de 2026
+/**
+ * auto-publish-45.ts
+ * Script de publicação automática do The Daily Compute — Edição #45
+ * Uso: cd /home/ubuntu/papayanews && npx tsx scripts/auto-publish-45.ts
+ */
+import "dotenv/config";
+import * as fs from "fs";
+import * as path from "path";
+import * as db from "../server/db";
+
+const EDITION_NUMBER = 45;
+const EDITION_DATE = "01 de abril de 2026";
+const EDITION_TITLE = `The Daily Compute #${EDITION_NUMBER} — ${EDITION_DATE}`;
+const EDITION_SUBJECT = `The Daily Compute #${EDITION_NUMBER} — ${EDITION_DATE}: OpenAI atinge $852B, código do Claude vaza no npm e Google lança TurboQuant`;
+
+const EDITION_CONTENT = `# The Daily Compute #${EDITION_NUMBER} — ${EDITION_DATE}
 
 **Manchete:** OpenAI atinge valuation de $852 bilhões em rodada histórica enquanto o código do agente Claude vaza na íntegra.
 
@@ -141,3 +156,53 @@ Contudo, a genialidade da engenharia contrasta com o vetor do vazamento: um simp
 **Preparação Regulatória:** Um relatório da Vision Compliance apontou que 78% das empresas que operam na União Europeia ainda não estão preparadas para as exigências de classificação de risco e transparência do EU AI Act, que entrará em vigor em fases ao longo de 2026 e 2027.
 
 **Reestruturação Algorítmica:** A Meta formou um laboratório de pesquisa de elite, recrutando talentos do TikTok, OpenAI, Google e Amazon, com o objetivo exclusivo de revolucionar os algoritmos de recomendação de longo prazo do Facebook e Instagram, sinalizando que a batalha pela atenção do usuário está entrando em uma nova fase de intensidade.
+`;
+
+async function publishEdition() {
+  console.log(`\n📰 The Daily Compute — Auto-Publish Script`);
+  console.log(`📅 Edição: #${EDITION_NUMBER} — ${EDITION_DATE}`);
+  console.log(`─────────────────────────────────────────────`);
+
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    console.error("❌ DATABASE_URL não configurada. Publicação no banco de dados não disponível.");
+    console.log("\n📄 Conteúdo da edição gerado com sucesso:");
+    console.log(`   Título: ${EDITION_TITLE}`);
+    console.log(`   Assunto: ${EDITION_SUBJECT}`);
+    console.log(`   Caracteres: ${EDITION_CONTENT.length}`);
+    console.log("\n✅ Script executado. Edição pronta para publicação manual.");
+    const outputPath = path.join(process.cwd(), "scripts", "last-edition.md");
+    fs.writeFileSync(outputPath, EDITION_CONTENT, "utf-8");
+    console.log(`\n💾 Edição salva em: ${outputPath}`);
+    return;
+  }
+
+  try {
+    console.log("🔌 Conectando ao banco de dados...");
+    const newsletter = await db.createNewsletter({
+      title: EDITION_TITLE,
+      subject: EDITION_SUBJECT,
+      content: EDITION_CONTENT,
+      status: "sent",
+      sentAt: new Date(),
+      createdBy: 1,
+    });
+    console.log(`✅ Newsletter criada com sucesso!`);
+    console.log(`   ID: ${newsletter?.insertId || "N/A"}`);
+    console.log(`   Título: ${EDITION_TITLE}`);
+    console.log(`   Status: sent`);
+    console.log(`   Data: ${new Date().toISOString()}`);
+    const outputPath = path.join(process.cwd(), "scripts", "last-edition.md");
+    fs.writeFileSync(outputPath, EDITION_CONTENT, "utf-8");
+    console.log(`\n💾 Edição salva em: ${outputPath}`);
+    console.log("\n🎉 Publicação concluída com sucesso!");
+  } catch (error) {
+    console.error("❌ Erro ao publicar no banco de dados:", error);
+    const outputPath = path.join(process.cwd(), "scripts", "last-edition.md");
+    fs.writeFileSync(outputPath, EDITION_CONTENT, "utf-8");
+    console.log(`\n💾 Fallback: Edição salva em arquivo: ${outputPath}`);
+    console.log("⚠️  Publicação no banco falhou, mas o conteúdo foi preservado.");
+  }
+}
+
+publishEdition().catch(console.error);
